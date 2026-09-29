@@ -82,6 +82,7 @@ main{padding-block:24px 60px}
 .chip.mem{background:var(--gold);color:var(--surface)}
 .chip.dir{background:var(--ink);color:var(--surface)}
 .calopts{display:grid;gap:8px}.calopts .btn{justify-content:flex-start;text-align:left}
+.chip.draft{opacity:.55;outline:1px dashed var(--muted)}
 .chip.cx{background:var(--line);color:var(--muted);text-decoration:line-through}
 @media (max-width:560px){.cal .d{min-height:52px}.chip{font-size:0;height:8px;padding:0}}
 /* event cards */
@@ -238,7 +239,7 @@ const myReg=id=>D&&D.me&&D.me.inscricoes.find(r=>r.evento_id===id);
 function peopleOf(eid){
   const out=[];const subs=A.inscritos;
   A.inscricoes.filter(r=>r.evento_id===eid).forEach(r=>{const s=subs.find(x=>x.email===r.email);const m=s&&s.membro;
-    out.push({group:m?'mem':'non',type:m?'Membro':'Inscrito não membro',n_ordem:(s&&s.n_ordem)||'',nome:r.nome,email:r.email,telemovel:r.telemovel,agape:r.agape,visita:!!r.visita,nif:r.nif||'',restricoes:r.restricoes,atividades:r.atividades||[],nota:r.observacoes||''});
+    out.push({group:m?'mem':'non',type:m?'Membro':'Inscrito não membro',n_ordem:(s&&s.n_ordem)||'',nome:r.nome,email:r.email,telemovel:r.telemovel,agape:r.agape,visita:!!r.visita,nif:r.nif||'',restricoes:r.restricoes,atividades:r.atividades||[],nota:[r.observacoes,r.motivo?'Alterou: '+r.motivo:''].filter(Boolean).join(' · ')});
     (r.convidados||[]).forEach(g=>out.push({group:'gst',type:'Convidado',n_ordem:'',nome:g.nome,email:g.email,telemovel:g.telemovel,agape:g.agape,visita:!!g.visita,nif:'',restricoes:g.restricoes,atividades:g.atividades||[],nota:'Convidado de '+r.nome}));
   });return out;
 }
@@ -286,7 +287,7 @@ function calendar(){
     if(i===35&&d.getMonth()!==m-1)break;
     const de=sorted(list.filter(e=>e.data===ds));
     cells+='<div class="d'+(d.getMonth()!==m-1?' out':'')+(ds===TODAY()?' today':'')+'"><span class="num">'+d.getDate()+'</span>'+
-      de.map(e=>'<button class="chip'+(e.estado==='cancelado'?' cx':e.visibilidade==='direcao'?' dir':e.visibilidade==='membros'?' mem':'')+'" data-act="open-ev" data-id="'+e.id+'" title="'+esc(e.titulo)+'">'+esc(e.hora+' '+e.titulo)+'</button>').join('')+'</div>';
+      de.map(e=>'<button class="chip'+(e.estado==='rascunho'||e.estado==='oculto'?' draft':'')+(e.estado==='cancelado'?' cx':e.visibilidade==='direcao'?' dir':e.visibilidade==='membros'?' mem':'')+'" data-act="open-ev" data-id="'+e.id+'" title="'+esc(e.titulo)+'">'+esc(e.hora+' '+e.titulo)+'</button>').join('')+'</div>';
   }
   return '<section class="panel"><div class="calhead"><h2>'+MESES[m-1]+' '+y+'</h2><button class="btn sm" data-act="month" data-v="-1" aria-label="Mês anterior">‹</button><button class="btn sm" data-act="month" data-v="0">Hoje</button><button class="btn sm" data-act="month" data-v="1" aria-label="Mês seguinte">›</button></div>'+
   '<div class="cal">'+WD.map(w=>'<div class="wd">'+w+'</div>').join('')+cells+'</div>'+
@@ -299,6 +300,8 @@ function agenda(){
 function badges(e){
   let b=e.visibilidade==='direcao'?'<span class="pill dir">Direção / Gestão</span>':e.visibilidade==='membros'?'<span class="pill mem">Membros</span>':'<span class="pill pub">Público</span>';
   if(e.estado==='cancelado')b+=' <span class="pill cx">Cancelado</span>';
+  if(e.estado==='rascunho')b+=' <span class="pill warn">Rascunho · não publicado</span>';
+  if(e.estado==='oculto')b+=' <span class="pill warn">Oculto</span>';
   if(ui.mode!=='admin'&&myReg(e.id))b+=' <span class="pill ok">Inscrito</span>';
   return b;
 }
@@ -307,11 +310,17 @@ function evCard(e,admin){
   let actions='<button class="btn sm" data-act="open-ev" data-id="'+e.id+'">Ver</button>';
   if(!admin&&D&&D.me&&e.estado!=='cancelado'&&TODAY()<=e.prazo) actions+='<button class="btn sm primary" data-act="open-reg" data-id="'+e.id+'">'+(myReg(e.id)?'Editar inscrição':'Inscrever-me')+'</button>';
   if(admin){
-    actions='<button class="btn sm" data-act="edit-ev" data-id="'+e.id+'">Editar</button><button class="btn sm" data-act="copy-link" data-id="'+e.id+'">Copiar link</button><button class="btn sm" data-act="regs" data-id="'+e.id+'">Inscrições ('+countPeople(e.id)+' pessoas)</button>';
-    if(e.estado!=='cancelado'){
+    const np=countPeople(e.id);
+    const del=ui.pending==='del-'+e.id?'<button class="btn sm danger" data-act="del-ev" data-id="'+e.id+'">Confirmar eliminação'+(np&&e.data>=TODAY()&&e.estado!=='rascunho'&&e.estado!=='cancelado'?' (avisa '+np+' pessoa(s))':'')+'</button><button class="btn sm" data-act="pending-clear">Não</button>':'<button class="btn sm danger" data-act="ask-del" data-id="'+e.id+'">Eliminar</button>';
+    if(e.estado==='rascunho') actions='<button class="btn sm" data-act="edit-ev" data-id="'+e.id+'">Editar</button><button class="btn sm primary" data-act="pub-ev" data-id="'+e.id+'">Publicar e enviar convites</button>'+del;
+    else if(e.estado==='oculto') actions='<button class="btn sm" data-act="edit-ev" data-id="'+e.id+'">Editar</button><button class="btn sm primary" data-act="pub-ev" data-id="'+e.id+'">Mostrar</button><button class="btn sm" data-act="regs" data-id="'+e.id+'">Inscrições ('+np+' pessoas)</button>'+del;
+    else actions='<button class="btn sm" data-act="edit-ev" data-id="'+e.id+'">Editar</button><button class="btn sm" data-act="copy-link" data-id="'+e.id+'">Copiar link</button><button class="btn sm" data-act="regs" data-id="'+e.id+'">Inscrições ('+np+' pessoas)</button>';
+    if(e.estado==='ativo'){
       actions+='<button class="btn sm" data-act="notice" data-id="'+e.id+'">Enviar novidade</button><button class="btn sm" data-act="remind" data-id="'+e.id+'" data-v="7">Lembrete agora</button>';
       actions+=ui.pending==='cx-'+e.id?'<button class="btn sm danger" data-act="cancel-ev" data-id="'+e.id+'">Confirmar cancelamento</button><button class="btn sm" data-act="pending-clear">Não</button>':'<button class="btn sm danger" data-act="ask-cancel" data-id="'+e.id+'">Cancelar evento</button>';
+      actions+='<button class="btn sm" data-act="hide-ev" data-id="'+e.id+'">Ocultar</button>'+del;
     }
+    if(e.estado==='cancelado') actions+=del;
   }
   return '<article class="ev'+(e.estado==='cancelado'?' cancel':'')+'"><div class="datebox"><b>'+d.getDate()+'</b><span>'+MESES[d.getMonth()].slice(0,3)+'</span></div><div style="min-width:0"><div class="row" style="margin:0 0 2px">'+badges(e)+'</div><h3>'+esc(e.titulo)+'</h3><div class="meta">'+esc(e.hora+' · '+e.local)+'</div><div class="row">'+actions+'</div></div></article>';
 }
@@ -362,10 +371,11 @@ const fmtData=d=>/^\d{4}-\d\d-\d\d$/.test(d||'')?d.split('-').reverse().join('/'
 function memberRows(){
   const q=(ui.q||'').toLowerCase().trim();const subs={};A.inscritos.forEach(s=>subs[s.email]=s);
   const L=A.membros.filter(m=>!q||MCAMPOS.some(c=>String(m[c[0]]||'').toLowerCase().includes(q)));
-  if(!L.length)return '<tr><td colspan="9" class="muted">'+(A.membros.length?'Nenhum membro corresponde à pesquisa.':'Ainda não há membros. Adicione um a um ou importe um ficheiro Excel/CSV.')+'</td></tr>';
+  if(!L.length)return '<tr><td colspan="10" class="muted">'+(A.membros.length?'Nenhum membro corresponde à pesquisa.':'Ainda não há membros. Adicione um a um ou importe um ficheiro Excel/CSV.')+'</td></tr>';
   return L.map(m=>{const s=m.email&&subs[m.email];const pr=ui.pending==='rmm-'+m.n_ordem;
     return '<tr><td class="nw"><b>'+esc(m.n_ordem)+'</b></td><td>'+esc(m.nome)+(m.direcao==='SIM'?' <span class="pill dir">Direção</span>':'')+(m.grau?'<div class="small muted">'+esc(m.grau)+'</div>':'')+'</td><td>'+esc(m.email||'—')+'</td><td class="nw">'+esc(m.telemovel||'—')+'</td><td>'+esc(m.localidade||'—')+'</td><td class="nw">'+esc(fmtData(m.data_admissao)||'—')+'</td><td class="nw">'+esc(m.nif||'—')+'</td>'+
     '<td>'+(s?(s.estado==='confirmado'?'<span class="pill ok">Recebe</span>':'<span class="pill warn">Pendente</span>'):'<span class="small muted">Não inscrito</span>')+'</td>'+
+    '<td><label class="inline" title="'+(m.email?'Tornar administrador':'Precisa de email para ser administrador')+'"><input type="checkbox" data-change="adm" data-email="'+esc(m.email||'')+'"'+(m.email&&A.admins.includes(m.email.toLowerCase())?' checked':'')+(m.email?'':' disabled')+'> Admin</label></td>'+
     '<td><div class="row"><button class="btn sm" data-act="edit-mem" data-v="'+esc(m.n_ordem)+'">Editar</button>'+(pr?'<button class="btn sm danger" data-act="rm-mem" data-v="'+esc(m.n_ordem)+'">Confirmar remoção</button><button class="btn sm" data-act="pending-clear">Não</button>':'<button class="btn sm danger" data-act="ask-rm-mem" data-v="'+esc(m.n_ordem)+'">Remover</button>')+'</div></td></tr>'}).join('');
 }
 function adminMembers(){
@@ -373,7 +383,7 @@ function adminMembers(){
   return '<section class="panel"><div class="row" style="justify-content:space-between;margin-bottom:10px"><h2 style="margin:0">Base de membros</h2><span class="small muted">'+n+' membros · '+ins+' recebem notificações</span></div>'+
   '<p class="small muted" style="margin-top:0">Quem se inscrever nas notificações com um email ou nº da Ordem desta base fica logo identificado como membro. Não é enviado nenhum email ao adicionar membros.</p>'+
   '<div class="mtools"><label>Pesquisar<input type="search" id="mem-q" data-input="mem-q" value="'+esc(ui.q||'')+'" placeholder="Nome, nº, email, localidade…"></label><button class="btn primary" data-act="new-mem">Novo membro</button><button class="btn" data-act="import-mem">Importar Excel/CSV</button><button class="btn" data-act="tpl-mem">Descarregar modelo</button><input type="file" id="mem-file" accept=".csv,.xlsx,.xls,.ods,text/csv" hidden data-change="mem-file"></div>'+
-  '<div class="tablewrap"><table><thead><tr><th>Nº</th><th>Nome</th><th>Email</th><th>Telemóvel</th><th>Localidade</th><th>Admissão</th><th>NIF</th><th>Notificações</th><th>Ações</th></tr></thead><tbody id="mem-body">'+memberRows()+'</tbody></table></div></section>';
+  '<div class="tablewrap"><table><thead><tr><th>Nº</th><th>Nome</th><th>Email</th><th>Telemóvel</th><th>Localidade</th><th>Admissão</th><th>NIF</th><th>Notificações</th><th>Admin</th><th>Ações</th></tr></thead><tbody id="mem-body">'+memberRows()+'</tbody></table></div></section>';
 }
 function memberForm(m){const x=m||{};
   return '<h2>'+(m?'Editar membro':'Novo membro')+'</h2><form data-form="membro" data-v="'+esc(m?m.n_ordem:'')+'" class="stack">'+
@@ -432,7 +442,8 @@ function adminRegs(){
   '<div class="tiles">'+tiles+'</div>'+
   '<div class="tablewrap"><table><thead><tr>'+cols.map(c=>'<th>'+c+'</th>').join('')+'</tr></thead><tbody>'+
   (P.length?grp('Membros',mem)+grp('Inscritos não membros',non)+grp('Convidados',gst):'<tr><td colspan="'+cols.length+'" class="muted">Ainda sem inscrições.</td></tr>')+'</tbody></table></div>'+
-  '<p class="small muted">Cada pessoa conta uma vez. Os convidados escolhem o ágape e as atividades individualmente.</p></section>';
+  '<p class="small muted">Cada pessoa conta uma vez. Os convidados escolhem o ágape e as atividades individualmente.</p>'+
+  (()=>{const H=(A.historico||[]).filter(x=>x.evento_id===e.id&&x.acao!=='Inscrição');return H.length?'<h3 style="margin:18px 0 8px;font-size:1rem">Alterações e anulações</h3><div class="tablewrap"><table><thead><tr><th>Data</th><th>Pessoa</th><th>Ação</th><th>Motivo</th></tr></thead><tbody>'+H.map(x=>'<tr><td class="nw">'+esc(x.data)+'</td><td>'+esc(x.nome)+'<div class="small muted">'+esc(x.email)+'</div></td><td>'+(x.acao==='Anulação'?'<span class="pill cx">Anulação</span>':'<span class="pill warn">Alteração</span>')+'</td><td>'+esc(x.motivo||'—')+'</td></tr>').join('')+'</tbody></table></div>':''})()+'</section>';
 }
 function adminSettings(){
   return '<section class="panel narrow"><h2>Definições</h2><form data-form="settings" class="stack"><label>Nome que aparece na app e nos emails<input type="text" id="set-org" value="'+esc(A.org)+'"></label>'+
@@ -487,6 +498,7 @@ function regForm(e){
   if(e.atividades.length) h+='<fieldset><legend>Outras atividades</legend>'+e.atividades.map(a=>'<label class="inline"><input type="checkbox" name="r-act" value="'+esc(a)+'"'+((r.atividades||[]).includes(a)?' checked':'')+'> '+esc(a)+'</label>').join('')+'</fieldset>';
   if(f.convidados) h+='<div class="stack"><b>Convidados que leva</b><div id="guests" class="stack">'+guestsHtml(e,r.convidados||[])+'</div><button type="button" class="btn" data-act="add-guest" data-id="'+e.id+'" style="align-self:flex-start">+ Adicionar convidado</button></div>';
   if(f.observacoes) h+='<label>Observações<textarea id="r-notes">'+esc(r.observacoes||'')+'</textarea></label>';
+  if(r.nome) h+='<label>Motivo da alteração ou anulação (obrigatório)<textarea id="r-motivo" required placeholder="Ex.: mudança de planos, mais um convidado…"></textarea></label>';
   h+='<div class="row"><button class="btn primary">'+(r.nome?'Guardar alterações':'Confirmar inscrição')+'</button>'+(r.nome?(ui.pending==='unreg'?'<button type="button" class="btn danger" data-act="unreg" data-id="'+e.id+'">Confirmar anulação</button>':'<button type="button" class="btn danger" data-act="ask-unreg">Anular inscrição</button>'):'')+'</div></form>';
   return h;
 }
@@ -520,7 +532,7 @@ function editor(e){
   '<fieldset><legend>Perguntas do formulário deste evento</legend><span class="small muted">O nome e o email são sempre pedidos.</span>'+Object.keys(CAMPOS).map(k=>'<label class="inline"><input type="checkbox" name="ed-f" value="'+k+'"'+(x.campos[k]?' checked':'')+'> '+CAMPOS[k]+'</label>').join('')+'</fieldset>'+
   '<label>Outras atividades (uma por linha, opcional)<textarea id="ed-acts" placeholder="Ex.: Visita guiada (10:00)">'+esc(x.atividades.join('\n'))+'</textarea></label>'+
   (e?'<label class="inline"><input type="checkbox" id="ed-notify" checked> Avisar os convidados da alteração por email</label>':'<div class="note small">Ao guardar, é enviado um convite com o formulário a todos os inscritos confirmados que podem ver o evento.</div>')+
-  '<button class="btn primary">'+(e?'Guardar alterações':'Criar e enviar convites')+'</button></form>';
+  (e?'<button class="btn primary">'+(e.estado==='rascunho'?'Guardar rascunho':'Guardar alterações')+'</button>':'<div class="row"><button class="btn primary" data-v="pub">Criar e enviar convites</button><button class="btn" data-v="draft">Guardar como rascunho</button></div>')+'</form>';
 }
 
 /* ---------- eventos ---------- */
@@ -541,7 +553,7 @@ document.addEventListener('click',async ev_=>{
     case 'notice': ui.modal={type:'notice',id};break;
     case 'ask-cancel': ui.pending='cx-'+id;break;
     case 'ask-rm': ui.pending='rm-'+email;break;
-    case 'ask-unreg': ui.pending='unreg';renderLayer();return;
+    case 'ask-unreg': {const mv=document.getElementById('r-motivo');if(mv&&!mv.value.trim()){toast('Indique primeiro o motivo da anulação.');mv.focus();return}t.outerHTML='<button type="button" class="btn danger" data-act="unreg" data-id="'+(ui.modal&&ui.modal.id)+'">Confirmar anulação</button>';return}
     case 'pending-clear': ui.pending=null;break;
     case 'add-guest': {const e=ev(id);const g=readGuests();g.push({nome:'',email:'',telemovel:'',agape:false,visita:false,restricoes:'',atividades:[]});document.getElementById('guests').innerHTML=guestsHtml(e,g);const ins=document.querySelectorAll('#guests [data-g=nome]');ins[ins.length-1].focus();return}
     case 'rm-guest': {const e=ev(id);const g=readGuests();g.splice(+v,1);document.getElementById('guests').innerHTML=guestsHtml(e,g);return}
@@ -552,6 +564,10 @@ document.addEventListener('click',async ev_=>{
     case 'cal': ev_.preventDefault();ui.modal={type:'cal'};break;
     case 'copy-cal': {const i=document.getElementById('cal-url');const ok=()=>toast('Endereço copiado.');try{navigator.clipboard.writeText(i.value).then(ok,()=>{i.select();document.execCommand('copy');ok()})}catch(err){i.select();document.execCommand('copy');ok()}return}
     case 'ics-ev': {const e=ev(id);baixar('evento.ics',icsEvento(e),'text/calendar;charset=utf-8');return}
+    case 'pub-ev': r=await act('apiAdminPublicar',B.admin,id);if(r){toast(r);await loadAdmin()}break;
+    case 'hide-ev': r=await act('apiAdminOcultar',B.admin,id);if(r){toast(r);await loadAdmin()}break;
+    case 'ask-del': ui.pending='del-'+id;break;
+    case 'del-ev': r=await act('apiAdminEliminar',B.admin,id);if(r){toast(r);ui.pending=null;await loadAdmin()}break;
     case 'new-mem': ui.modal={type:'membro',v:''};break;
     case 'edit-mem': ui.modal={type:'membro',v};break;
     case 'ask-rm-mem': ui.pending='rmm-'+v;break;
@@ -562,7 +578,7 @@ document.addEventListener('click',async ev_=>{
     case 'forgot': ev_.preventDefault();ui.forgot=v==='1';ui.msg=null;break;
     case 'logout': await act('apiAdminSair',B.admin);sSet('');B.admin='';A=null;ui.msg='Sessão terminada.';break;
     case 'sair': r=await act('apiSair',B.token);if(r){ui.msg=r;D&&(D.me=null)}break;
-    case 'unreg': r=await act('apiAnular',B.token,id);if(r){toast(r);ui.modal=null;ui.pending=null;await loadPublic()}break;
+    case 'unreg': {const mv=val('r-motivo');if(!mv){toast('Indique o motivo da anulação.');return}r=await act('apiAnular',B.token,id,mv);}if(r){toast(r);ui.modal=null;ui.pending=null;await loadPublic()}break;
     case 'remind': r=await act('apiAdminLembrete',B.admin,id,7);if(r){toast(r);await loadAdmin()}break;
     case 'cancel-ev': r=await act('apiAdminCancelar',B.admin,id);if(r){toast(r);ui.pending=null;await loadAdmin()}break;
     case 'resend': r=await act('apiAdminReenviar',B.admin,email);if(r){toast(r);await loadAdmin()}break;
@@ -579,6 +595,7 @@ document.addEventListener('change',async e_=>{
   const t=e_.target,c=t.dataset.change;if(!c)return;
   if(c==='regev'){ui.regEv=t.value;render()}
   if(c==='mem-file'){const file=t.files&&t.files[0];if(!file)return;try{const I=await lerFicheiro(file);if(!I.linhas.length)throw new Error('O ficheiro não tem linhas com dados por baixo do cabeçalho.');ui.modal={type:'import',data:I,file:file.name};renderLayer()}catch(err){toast(errMsg(err))}}
+  if(c==='adm'){const on=t.checked;const r=await act('apiAdminTornarAdmin',B.admin,t.dataset.email,on);if(r){toast(r);await loadAdmin();const b=document.getElementById('mem-body');if(b)b.innerHTML=memberRows()}else t.checked=!on;return}
   if(c==='member'){const r=await act('apiAdminMembro',B.admin,t.dataset.email,t.checked);if(r){toast(r);const s=A.inscritos.find(x=>x.email===t.dataset.email);if(s)s.membro=t.checked}else t.checked=!t.checked}
 });
 const val=id=>{const el=document.getElementById(id);return el?el.value.trim():''};
@@ -591,14 +608,15 @@ document.addEventListener('submit',async e_=>{
   if(k==='definir'){const p1=document.getElementById('pw1').value,p2=document.getElementById('pw2').value;if(p1!==p2){toast('As duas palavras-passe não são iguais.');return}
     r=await act('apiAdminDefinirPassword',B.reset,p1);if(r){sSet(r.sessao);B.admin=r.sessao;ui.mode='admin';ui.msg=null;toast('Palavra-passe guardada.');await loadAdmin();render()}return}
   if(k==='reg'){const e=ev(f.dataset.id);
-    const data={nome:val('r-name'),telemovel:val('r-phone'),agape:((f.querySelector('[name=r-agape]:checked')||{}).value==='1'),visita:((f.querySelector('[name=r-visita]:checked')||{}).value==='1'),nif:val('r-nif'),restricoes:val('r-diet'),observacoes:val('r-notes'),atividades:[...f.querySelectorAll('[name=r-act]:checked')].map(i=>i.value),convidados:e.campos.convidados?readGuests():[]};
+    const data={nome:val('r-name'),telemovel:val('r-phone'),agape:((f.querySelector('[name=r-agape]:checked')||{}).value==='1'),visita:((f.querySelector('[name=r-visita]:checked')||{}).value==='1'),nif:val('r-nif'),restricoes:val('r-diet'),observacoes:val('r-notes'),motivo:val('r-motivo'),atividades:[...f.querySelectorAll('[name=r-act]:checked')].map(i=>i.value),convidados:e.campos.convidados?readGuests():[]};
     r=await act('apiInscrever',B.token,e.id,data);if(r){toast(r);ui.modal=null;await loadPublic();render()}return}
   if(k==='editor'){const campos={};f.querySelectorAll('[name=ed-f]').forEach(i=>campos[i.value]=i.checked);
     const d={id:f.dataset.id||'',titulo:val('ed-title'),data:val('ed-date'),hora:val('ed-time'),hora_fim:val('ed-end'),local:val('ed-loc'),descricao:val('ed-desc'),visibilidade:val('ed-vis'),prazo:val('ed-dl'),lotacao:val('ed-cap'),campos,atividades:val('ed-acts').split('\n').map(x=>x.trim()).filter(Boolean)};
     if(d.prazo>d.data){toast('O prazo de inscrição tem de ser antes ou no dia do evento.');return}
     if(d.hora_fim&&d.hora_fim<=d.hora){toast('A hora de fim tem de ser depois da hora de início.');return}
     const n=document.getElementById('ed-notify');
-    r=await act('apiAdminGuardarEvento',B.admin,d,!!(n&&n.checked));if(r){ui.month=d.data.slice(0,7);await loadAdmin();if(r.novo){ui.modal={type:'link',id:r.id,msg:r.msg,novo:true}}else{ui.modal=null;toast(r.msg||r)}render()}return}
+    d.rascunho=!!(e_.submitter&&e_.submitter.dataset.v==='draft');
+    r=await act('apiAdminGuardarEvento',B.admin,d,!!(n&&n.checked));if(r){ui.month=d.data.slice(0,7);await loadAdmin();if(r.novo&&!r.rascunho){ui.modal={type:'link',id:r.id,msg:r.msg,novo:true}}else{ui.modal=null;toast(r.msg||r)}render()}return}
   if(k==='notice'){const to=(f.querySelector('[name=n-to]:checked')||{}).value;r=await act('apiAdminNovidade',B.admin,f.dataset.id,val('n-subj'),val('n-body'),to==='reg');if(r){toast(r);ui.modal=null;await loadAdmin();render()}return}
   if(k==='membro'){const m={};MCAMPOS.forEach(c=>m[c[0]]=val('m-'+c[0]));m.direcao=document.getElementById('m-direcao').checked?'SIM':'';r=await act('apiAdminGuardarMembro',B.admin,m,f.dataset.v||'');if(r){toast(r);ui.modal=null;await loadAdmin();render()}return}
   if(k==='admin-add'){r=await act('apiAdminConvidar',B.admin,val('add-name'),val('add-email'),document.getElementById('add-member').checked);if(r){toast(r);await loadAdmin();render()}return}
