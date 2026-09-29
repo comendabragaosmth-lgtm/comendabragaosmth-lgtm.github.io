@@ -94,7 +94,7 @@ main{padding-block:24px 60px}
 /* forms */
 label{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.9rem}
 label.inline{flex-direction:row;align-items:center;gap:8px;font-weight:500}
-input[type=text],input[type=email],input[type=tel],input[type=number],input[type=date],input[type=time],select,textarea{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 10px;font-weight:400;width:100%;min-width:0}
+input[type=text],input[type=email],input[type=tel],input[type=password],input[type=number],input[type=date],input[type=time],select,textarea{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 10px;font-weight:400;width:100%;min-width:0}
 textarea{min-height:80px;resize:vertical}
 input[type=checkbox],input[type=radio]{accent-color:var(--red);width:18px;height:18px}
 fieldset{border:1px solid var(--line);border-radius:10px;padding:12px;margin:0;display:flex;flex-direction:column;gap:8px}
@@ -147,6 +147,10 @@ tr.grp td{background:var(--surface-2);font-weight:700;font-family:var(--f-displa
 .narrow{max-width:520px;margin:30px auto}
 .armsmall{width:110px;background:#fff;border-radius:10px;padding:6px;margin:0 auto;display:block}
 .lnk{color:var(--red)}
+.pw{position:relative;display:flex}.pw input{padding-right:88px}
+.pwt{position:absolute;right:4px;top:50%;transform:translateY(-50%);border:0;background:transparent;color:var(--red);font:inherit;font-weight:600;font-size:.85rem;padding:6px 10px;cursor:pointer;border-radius:6px}
+.pwt:hover{background:var(--red-soft)}
+.linkbox{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.85rem}
 a.btn{text-decoration:none;color:inherit;display:inline-flex;align-items:center}
 a.btn.primary{color:var(--on-red)}
 td.nw{white-space:nowrap}
@@ -174,7 +178,9 @@ document.getElementById('admlink').href=(BOOT.url||'')+'?v=admin';
 const B=BOOT;
 const MESES=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
 const WD=['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
-const CAMPOS={convidados:'Pode levar convidados',agape:'Ágape / almoço',restricoes:'Restrições alimentares',telemovel:'Telemóvel',observacoes:'Observações'};
+const CAMPOS={convidados:'Pode levar convidados',agape:'Ágape / almoço',visita:'Visita (sim/não por pessoa)',restricoes:'Restrições alimentares',telemovel:'Telemóvel',nif:'NIF (opcional)',observacoes:'Observações'};
+const pwField=(id,lab,ac)=>'<label>'+lab+'<span class="pw"><input type="password" id="'+id+'" required'+(ac==='new-password'?' minlength="8"':'')+' autocomplete="'+ac+'"><button type="button" class="pwt" data-act="pw-toggle" data-v="'+id+'" aria-pressed="false" aria-label="Mostrar palavra-passe">Mostrar</button></span></label>';
+const evLink=id=>(BOOT.url||'')+'?ev='+encodeURIComponent(id);
 const pad=n=>String(n).padStart(2,'0');
 const parse=s=>{const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d,12)};
 const iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
@@ -226,8 +232,8 @@ const myReg=id=>D&&D.me&&D.me.inscricoes.find(r=>r.evento_id===id);
 function peopleOf(eid){
   const out=[];const subs=A.inscritos;
   A.inscricoes.filter(r=>r.evento_id===eid).forEach(r=>{const s=subs.find(x=>x.email===r.email);const m=s&&s.membro;
-    out.push({group:m?'mem':'non',type:m?'Membro':'Inscrito não membro',nome:r.nome,email:r.email,telemovel:r.telemovel,agape:r.agape,restricoes:r.restricoes,atividades:r.atividades||[],nota:r.observacoes||''});
-    (r.convidados||[]).forEach(g=>out.push({group:'gst',type:'Convidado',nome:g.nome,email:g.email,telemovel:g.telemovel,agape:g.agape,restricoes:g.restricoes,atividades:g.atividades||[],nota:'Convidado de '+r.nome}));
+    out.push({group:m?'mem':'non',type:m?'Membro':'Inscrito não membro',nome:r.nome,email:r.email,telemovel:r.telemovel,agape:r.agape,visita:!!r.visita,nif:r.nif||'',restricoes:r.restricoes,atividades:r.atividades||[],nota:r.observacoes||''});
+    (r.convidados||[]).forEach(g=>out.push({group:'gst',type:'Convidado',nome:g.nome,email:g.email,telemovel:g.telemovel,agape:g.agape,visita:!!g.visita,nif:'',restricoes:g.restricoes,atividades:g.atividades||[],nota:'Convidado de '+r.nome}));
   });return out;
 }
 const countPeople=eid=>A.inscricoes.filter(r=>r.evento_id===eid).reduce((a,r)=>a+1+(r.convidados||[]).length,0);
@@ -295,7 +301,7 @@ function evCard(e,admin){
   let actions='<button class="btn sm" data-act="open-ev" data-id="'+e.id+'">Ver</button>';
   if(!admin&&D&&D.me&&e.estado!=='cancelado'&&TODAY()<=e.prazo) actions+='<button class="btn sm primary" data-act="open-reg" data-id="'+e.id+'">'+(myReg(e.id)?'Editar inscrição':'Inscrever-me')+'</button>';
   if(admin){
-    actions='<button class="btn sm" data-act="edit-ev" data-id="'+e.id+'">Editar</button><button class="btn sm" data-act="regs" data-id="'+e.id+'">Inscrições ('+countPeople(e.id)+' pessoas)</button>';
+    actions='<button class="btn sm" data-act="edit-ev" data-id="'+e.id+'">Editar</button><button class="btn sm" data-act="copy-link" data-id="'+e.id+'">Copiar link</button><button class="btn sm" data-act="regs" data-id="'+e.id+'">Inscrições ('+countPeople(e.id)+' pessoas)</button>';
     if(e.estado!=='cancelado'){
       actions+='<button class="btn sm" data-act="notice" data-id="'+e.id+'">Enviar novidade</button><button class="btn sm" data-act="remind" data-id="'+e.id+'" data-v="7">Lembrete agora</button>';
       actions+=ui.pending==='cx-'+e.id?'<button class="btn sm danger" data-act="cancel-ev" data-id="'+e.id+'">Confirmar cancelamento</button><button class="btn sm" data-act="pending-clear">Não</button>':'<button class="btn sm danger" data-act="ask-cancel" data-id="'+e.id+'">Cancelar evento</button>';
@@ -308,11 +314,11 @@ function evCard(e,admin){
 function adminLogin(){
   const head='<section class="panel narrow stack"><img src="'+ARMS+'" alt="Brasão da Ordem" class="armsmall"><h2>Área do administrador</h2>'+(ui.msg?'<div class="note">'+esc(ui.msg)+'</div>':'');
   if(ui.forgot) return head+'<p class="muted small" style="margin:0">Escreva o seu email de administrador. Vai receber um link para criar ou alterar a palavra-passe, válido durante 2 horas.</p><form data-form="admin-forgot" class="stack"><label>Email<input type="email" id="adm-email" required autocomplete="email"></label><button class="btn primary">Enviar link</button></form><p class="small" style="margin:0"><a href="#" class="lnk" data-act="forgot" data-v="0">Voltar à entrada</a></p></section>';
-  return head+'<form data-form="admin-login" class="stack"><label>Email<input type="email" id="adm-email" required autocomplete="username"></label><label>Palavra-passe<input type="password" id="adm-pw" required autocomplete="current-password"></label><button class="btn primary">Entrar</button></form><p class="small" style="margin:0"><a href="#" class="lnk" data-act="forgot" data-v="1">Primeira vez ou esqueceu-se da palavra-passe?</a></p><p class="small muted" style="margin:0">A sessão termina quando fechar o browser.</p></section>';
+  return head+'<form data-form="admin-login" class="stack"><label>Email<input type="email" id="adm-email" required autocomplete="username"></label>'+pwField('adm-pw','Palavra-passe','current-password')+'<button class="btn primary">Entrar</button></form><p class="small" style="margin:0"><a href="#" class="lnk" data-act="forgot" data-v="1">Primeira vez ou esqueceu-se da palavra-passe?</a></p><p class="small muted" style="margin:0">A sessão termina quando fechar o browser.</p></section>';
 }
 function viewDefinir(){
   if(ui.msg)return '<section class="panel narrow stack"><h2>Palavra-passe</h2><div class="note">'+esc(ui.msg)+'</div><a class="btn" href="'+esc(B.url)+'?v=admin" target="_top">Ir para a área do administrador</a></section>';
-  return '<section class="panel narrow stack"><img src="'+ARMS+'" alt="Brasão da Ordem" class="armsmall"><h2>Definir palavra-passe</h2><p class="muted small" style="margin:0">Escolha uma palavra-passe com pelo menos 8 caracteres. Só o senhor a fica a saber.</p><form data-form="definir" class="stack"><label>Nova palavra-passe<input type="password" id="pw1" required minlength="8" autocomplete="new-password"></label><label>Repetir a palavra-passe<input type="password" id="pw2" required minlength="8" autocomplete="new-password"></label><button class="btn primary">Guardar e entrar</button></form></section>';
+  return '<section class="panel narrow stack"><img src="'+ARMS+'" alt="Brasão da Ordem" class="armsmall"><h2>Definir palavra-passe</h2><p class="muted small" style="margin:0">Escolha uma palavra-passe com pelo menos 8 caracteres. Só o senhor a fica a saber.</p><form data-form="definir" class="stack">'+pwField('pw1','Nova palavra-passe','new-password')+pwField('pw2','Repetir a palavra-passe','new-password')+'<button class="btn primary">Guardar e entrar</button></form></section>';
 }
 function viewAdmin(){
   const tabs=[['eventos','Eventos'],['inscritos','Inscritos'],['inscricoes','Inscrições'],['definicoes','Definições']];
@@ -352,9 +358,10 @@ function adminRegs(){
   const mem=P.filter(p=>p.group==='mem'),non=P.filter(p=>p.group==='non'),gst=P.filter(p=>p.group==='gst');
   let tiles='<div class="tile hi"><b>'+P.length+(e.lotacao?'<small> / '+esc(e.lotacao)+'</small>':'')+'</b><span>Total de pessoas</span></div><div class="tile"><b>'+mem.length+'</b><span>Membros</span></div><div class="tile"><b>'+non.length+'</b><span>Inscritos não membros</span></div><div class="tile"><b>'+gst.length+'</b><span>Convidados</span></div>';
   if(f.agape) tiles+='<div class="tile"><b>'+P.filter(p=>p.agape).length+'</b><span>Ágape / almoço</span></div>';
+  if(f.visita) tiles+='<div class="tile"><b>'+P.filter(p=>p.visita).length+'</b><span>Visita</span></div>';
   e.atividades.forEach(a=>{tiles+='<div class="tile"><b>'+P.filter(p=>p.atividades.includes(a)).length+'</b><span>'+esc(a)+'</span></div>'});
-  const cols=['Nome','Email','Telemóvel'].concat(f.agape?['Ágape']:[],f.restricoes?['Restrições']:[],e.atividades.length?['Atividades']:[],['Notas']);
-  const row=p=>'<tr><td>'+esc(p.nome)+'</td><td>'+esc(p.email||'—')+'</td><td class="nw">'+esc(p.telemovel||'—')+'</td>'+(f.agape?'<td>'+(p.agape?'Sim':'Não')+'</td>':'')+(f.restricoes?'<td>'+esc(p.restricoes||'—')+'</td>':'')+(e.atividades.length?'<td>'+esc(p.atividades.join('; ')||'—')+'</td>':'')+'<td>'+esc(p.nota||'—')+'</td></tr>';
+  const cols=['Nome','Email','Telemóvel'].concat(f.nif?['NIF']:[],f.agape?['Ágape']:[],f.visita?['Visita']:[],f.restricoes?['Restrições']:[],e.atividades.length?['Atividades']:[],['Notas']);
+  const row=p=>'<tr><td>'+esc(p.nome)+'</td><td>'+esc(p.email||'—')+'</td><td class="nw">'+esc(p.telemovel||'—')+'</td>'+(f.nif?'<td class="nw">'+esc(p.nif||'—')+'</td>':'')+(f.agape?'<td>'+(p.agape?'Sim':'Não')+'</td>':'')+(f.visita?'<td>'+(p.visita?'Sim':'Não')+'</td>':'')+(f.restricoes?'<td>'+esc(p.restricoes||'—')+'</td>':'')+(e.atividades.length?'<td>'+esc(p.atividades.join('; ')||'—')+'</td>':'')+'<td>'+esc(p.nota||'—')+'</td></tr>';
   const grp=(t,list)=>'<tr class="grp"><td colspan="'+cols.length+'">'+t+' <span class="muted">('+list.length+')</span></td></tr>'+(list.length?list.map(row).join(''):'<tr><td colspan="'+cols.length+'" class="muted">Nenhum.</td></tr>');
   return '<section class="panel"><div class="row" style="margin-bottom:12px"><label style="flex:1;min-width:220px">Evento<select data-change="regev">'+all.map(x=>'<option value="'+x.id+'"'+(x.id===e.id?' selected':'')+'>'+esc(x.data.split('-').reverse().join('/')+' · '+x.titulo)+'</option>').join('')+'</select></label><button class="btn" data-act="csv" style="align-self:flex-end">Copiar tabela</button><a class="btn" href="'+esc(A.folha)+'" target="_blank" rel="noopener" style="align-self:flex-end">Abrir folha Google</a></div>'+
   '<div class="tiles">'+tiles+'</div>'+
@@ -386,6 +393,7 @@ function modal(){
     (e.atividades.length?'<div><b class="small">Outras atividades</b><ul style="margin:4px 0 0;padding-left:20px">'+e.atividades.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div>':'')+
     '<p class="small muted" style="margin:0">Inscrições até '+esc(fmtLong(e.prazo))+(e.lotacao?' · lotação '+esc(e.lotacao)+' pessoas':'')+'</p>'+a;
   }
+  if(M.type==='link'){const l=evLink(e.id);return '<h2>'+(M.novo?'Evento criado':'Link do evento')+'</h2>'+(M.msg?'<p style="margin:0">'+esc(M.msg)+'</p>':'')+'<div><b>'+esc(e.titulo)+'</b><div class="small muted">'+esc(fmtLong(e.data)+' às '+e.hora)+'</div></div><label>Link para partilhar<input type="text" readonly id="ev-link" class="linkbox" value="'+esc(l)+'"></label><div class="row"><button class="btn primary" data-act="copy-link" data-id="'+e.id+'">Copiar link</button><button class="btn" data-act="modal-close">Fechar</button></div>'+(e.visibilidade==='membros'?'<div class="note small">Este evento é só para membros: só o veem pelo link as pessoas marcadas como membro, depois de entrarem pelo link dos seus emails.</div>':'<div class="note small">Quem abrir o link vê o evento. Para se inscrever, a pessoa tem de pedir para receber as notificações.</div>')}
   if(M.type==='reg') return regForm(e);
   if(M.type==='editor') return editor(e);
   if(M.type==='notice') return '<h2>Enviar novidade</h2><p class="muted small" style="margin:0">'+esc(e.titulo)+'</p><form data-form="notice" class="stack" data-id="'+e.id+'"><label>Assunto<input type="text" id="n-subj" required value="Novidade: '+esc(e.titulo)+'"></label><label>Mensagem<textarea id="n-body" required placeholder="Ex.: O ágape será no Restaurante X. Estacionamento disponível."></textarea></label>'+
@@ -398,7 +406,9 @@ function regForm(e){
   h+=r.nome?'<div class="note">Já está inscrito. Pode alterar as respostas e guardar de novo.</div>':'<div class="note">Os seus dados foram preenchidos a partir da base de dados. Confirme-os.</div>';
   h+='<form data-form="reg" data-id="'+e.id+'" class="stack"><label>Email<input type="email" value="'+esc(me.email)+'" disabled></label><label>Nome completo<input type="text" id="r-name" required value="'+esc(r.nome||me.nome||'')+'"></label>';
   if(f.telemovel) h+='<label>Telemóvel<input type="tel" id="r-phone" value="'+esc(r.telemovel||me.telemovel||'')+'"></label>';
+  if(f.nif) h+='<label>NIF (opcional)<input type="text" id="r-nif" inputmode="numeric" maxlength="20" autocomplete="off" value="'+esc(r.nif||'')+'"></label>';
   if(f.agape) h+='<fieldset><legend>Fica para o ágape / almoço?</legend><div class="row"><label class="inline"><input type="radio" name="r-agape" value="1"'+(r.nome&&r.agape?' checked':'')+' required> Sim</label><label class="inline"><input type="radio" name="r-agape" value="0"'+(r.nome&&!r.agape?' checked':'')+'> Não</label></div></fieldset>';
+  if(f.visita) h+='<fieldset><legend>Participa na visita?</legend><div class="row"><label class="inline"><input type="radio" name="r-visita" value="1"'+(r.nome&&r.visita?' checked':'')+' required> Sim</label><label class="inline"><input type="radio" name="r-visita" value="0"'+(r.nome&&!r.visita?' checked':'')+'> Não</label></div></fieldset>';
   if(f.restricoes) h+='<label>Restrições alimentares<input type="text" id="r-diet" placeholder="Ex.: vegetariano, alergia a marisco" value="'+esc(r.restricoes||'')+'"></label>';
   if(e.atividades.length) h+='<fieldset><legend>Outras atividades</legend>'+e.atividades.map(a=>'<label class="inline"><input type="checkbox" name="r-act" value="'+esc(a)+'"'+((r.atividades||[]).includes(a)?' checked':'')+'> '+esc(a)+'</label>').join('')+'</fieldset>';
   if(f.convidados) h+='<div class="stack"><b>Convidados que leva</b><div id="guests" class="stack">'+guestsHtml(e,r.convidados||[])+'</div><button type="button" class="btn" data-act="add-guest" data-id="'+e.id+'" style="align-self:flex-start">+ Adicionar convidado</button></div>';
@@ -413,17 +423,18 @@ function guestsHtml(e,list){
     '<label>Nome<input type="text" data-g="nome" required value="'+esc(g.nome||'')+'"></label>'+
     '<div class="f2"><label>Email (opcional)<input type="email" data-g="email" value="'+esc(g.email||'')+'"></label><label>Telemóvel (opcional)<input type="tel" data-g="telemovel" value="'+esc(g.telemovel||'')+'"></label></div>'+
     (f.agape?'<label class="inline"><input type="checkbox" data-g="agape"'+(g.agape?' checked':'')+'> Fica para o ágape / almoço</label>':'')+
+    (f.visita?'<label class="inline"><input type="checkbox" data-g="visita"'+(g.visita?' checked':'')+'> Participa na visita</label>':'')+
     (f.restricoes?'<label>Restrições alimentares<input type="text" data-g="restricoes" value="'+esc(g.restricoes||'')+'"></label>':'')+
     (e.atividades.length?'<fieldset><legend>Atividades</legend>'+e.atividades.map(a=>'<label class="inline"><input type="checkbox" data-g="act" value="'+esc(a)+'"'+((g.atividades||[]).includes(a)?' checked':'')+'> '+esc(a)+'</label>').join('')+'</fieldset>':'')+
   '</div>').join('');
 }
 function readGuests(){
   return [...document.querySelectorAll('#guests .guest')].map(b=>{const q=k=>b.querySelector('[data-g="'+k+'"]');const v=k=>q(k)?q(k).value.trim():'';
-    return {nome:v('nome'),email:v('email'),telemovel:v('telemovel'),agape:!!(q('agape')&&q('agape').checked),restricoes:v('restricoes'),atividades:[...b.querySelectorAll('[data-g="act"]:checked')].map(i=>i.value)}});
+    return {nome:v('nome'),email:v('email'),telemovel:v('telemovel'),agape:!!(q('agape')&&q('agape').checked),visita:!!(q('visita')&&q('visita').checked),restricoes:v('restricoes'),atividades:[...b.querySelectorAll('[data-g="act"]:checked')].map(i=>i.value)}});
 }
 function editor(e){
   const t=A.hoje;
-  const x=e||{titulo:'',data:plusDays(t,14),hora:'19:00',local:'',descricao:'',visibilidade:'membros',prazo:plusDays(t,10),lotacao:'',campos:{convidados:true,agape:true,restricoes:true,telemovel:true,observacoes:true},atividades:[]};
+  const x=e||{titulo:'',data:plusDays(t,14),hora:'19:00',local:'',descricao:'',visibilidade:'membros',prazo:plusDays(t,10),lotacao:'',campos:{convidados:true,agape:true,visita:false,restricoes:true,telemovel:true,nif:false,observacoes:true},atividades:[]};
   return '<h2>'+(e?'Editar evento':'Novo evento')+'</h2><form data-form="editor" data-id="'+(e?e.id:'')+'" class="stack">'+
   '<label>Título<input type="text" id="ed-title" required value="'+esc(x.titulo)+'" placeholder="Ex.: Jantar de Natal"></label>'+
   '<div class="f2"><label>Data<input type="date" id="ed-date" required value="'+x.data+'"></label><label>Hora<input type="time" id="ed-time" required value="'+x.hora+'"></label></div>'+
@@ -457,8 +468,12 @@ document.addEventListener('click',async ev_=>{
     case 'ask-rm': ui.pending='rm-'+email;break;
     case 'ask-unreg': ui.pending='unreg';renderLayer();return;
     case 'pending-clear': ui.pending=null;break;
-    case 'add-guest': {const e=ev(id);const g=readGuests();g.push({nome:'',email:'',telemovel:'',agape:false,restricoes:'',atividades:[]});document.getElementById('guests').innerHTML=guestsHtml(e,g);const ins=document.querySelectorAll('#guests [data-g=nome]');ins[ins.length-1].focus();return}
+    case 'add-guest': {const e=ev(id);const g=readGuests();g.push({nome:'',email:'',telemovel:'',agape:false,visita:false,restricoes:'',atividades:[]});document.getElementById('guests').innerHTML=guestsHtml(e,g);const ins=document.querySelectorAll('#guests [data-g=nome]');ins[ins.length-1].focus();return}
     case 'rm-guest': {const e=ev(id);const g=readGuests();g.splice(+v,1);document.getElementById('guests').innerHTML=guestsHtml(e,g);return}
+    case 'pw-toggle': {const i=document.getElementById(v);if(!i)return;const show=i.type==='password';i.type=show?'text':'password';t.textContent=show?'Ocultar':'Mostrar';t.setAttribute('aria-pressed',String(show));t.setAttribute('aria-label',show?'Ocultar palavra-passe':'Mostrar palavra-passe');i.focus();return}
+    case 'copy-link': {const l=evLink(id);const ok=()=>toast('Link copiado. Pode colá-lo num email ou mensagem.');
+      const fb=()=>{const i=document.getElementById('ev-link');if(i){i.focus();i.select();try{document.execCommand('copy')?ok():toast('Selecione o link e copie-o.')}catch(err){toast('Selecione o link e copie-o.')}}else{ui.modal={type:'link',id};renderLayer()}};
+      try{navigator.clipboard.writeText(l).then(ok,fb)}catch(err){fb()}return}
     case 'forgot': ev_.preventDefault();ui.forgot=v==='1';ui.msg=null;break;
     case 'logout': await act('apiAdminSair',B.admin);sSet('');B.admin='';A=null;ui.msg='Sessão terminada.';break;
     case 'sair': r=await act('apiSair',B.token);if(r){ui.msg=r;D&&(D.me=null)}break;
@@ -468,7 +483,7 @@ document.addEventListener('click',async ev_=>{
     case 'resend': r=await act('apiAdminReenviar',B.admin,email);if(r){toast(r);await loadAdmin()}break;
     case 'rm-sub': r=await act('apiAdminRemover',B.admin,email);if(r){toast(r);ui.pending=null;await loadAdmin()}break;
     case 'csv': {const e=ev(ui.regEv);const P=peopleOf(e.id);const q=x=>'"'+String(x==null?'':x).replace(/"/g,'""')+'"';
-      const txt=[['Tipo','Nome','Email','Telemóvel','Ágape','Restrições','Atividades','Notas'].map(q).join('\t')].concat(P.map(p=>[p.type,p.nome,p.email,p.telemovel,p.agape?'Sim':'Não',p.restricoes,p.atividades.join('; '),p.nota].map(q).join('\t'))).join('\n');
+      const txt=[['Tipo','Nome','Email','Telemóvel','NIF','Ágape','Visita','Restrições','Atividades','Notas'].map(q).join('\t')].concat(P.map(p=>[p.type,p.nome,p.email,p.telemovel,p.nif,p.agape?'Sim':'Não',p.visita?'Sim':'Não',p.restricoes,p.atividades.join('; '),p.nota].map(q).join('\t'))).join('\n');
       try{navigator.clipboard.writeText(txt).then(()=>toast('Tabela copiada. Cole numa folha de cálculo.'),()=>toast('Não foi possível copiar. Use «Abrir folha Google».'))}catch(err){toast('Não foi possível copiar. Use «Abrir folha Google».')}return}
     default: return;
   }
@@ -489,13 +504,13 @@ document.addEventListener('submit',async e_=>{
   if(k==='definir'){const p1=document.getElementById('pw1').value,p2=document.getElementById('pw2').value;if(p1!==p2){toast('As duas palavras-passe não são iguais.');return}
     r=await act('apiAdminDefinirPassword',B.reset,p1);if(r){sSet(r.sessao);B.admin=r.sessao;ui.mode='admin';ui.msg=null;toast('Palavra-passe guardada.');await loadAdmin();render()}return}
   if(k==='reg'){const e=ev(f.dataset.id);
-    const data={nome:val('r-name'),telemovel:val('r-phone'),agape:((f.querySelector('[name=r-agape]:checked')||{}).value==='1'),restricoes:val('r-diet'),observacoes:val('r-notes'),atividades:[...f.querySelectorAll('[name=r-act]:checked')].map(i=>i.value),convidados:e.campos.convidados?readGuests():[]};
+    const data={nome:val('r-name'),telemovel:val('r-phone'),agape:((f.querySelector('[name=r-agape]:checked')||{}).value==='1'),visita:((f.querySelector('[name=r-visita]:checked')||{}).value==='1'),nif:val('r-nif'),restricoes:val('r-diet'),observacoes:val('r-notes'),atividades:[...f.querySelectorAll('[name=r-act]:checked')].map(i=>i.value),convidados:e.campos.convidados?readGuests():[]};
     r=await act('apiInscrever',B.token,e.id,data);if(r){toast(r);ui.modal=null;await loadPublic();render()}return}
   if(k==='editor'){const campos={};f.querySelectorAll('[name=ed-f]').forEach(i=>campos[i.value]=i.checked);
     const d={id:f.dataset.id||'',titulo:val('ed-title'),data:val('ed-date'),hora:val('ed-time'),local:val('ed-loc'),descricao:val('ed-desc'),visibilidade:val('ed-vis'),prazo:val('ed-dl'),lotacao:val('ed-cap'),campos,atividades:val('ed-acts').split('\n').map(x=>x.trim()).filter(Boolean)};
     if(d.prazo>d.data){toast('O prazo de inscrição tem de ser antes ou no dia do evento.');return}
     const n=document.getElementById('ed-notify');
-    r=await act('apiAdminGuardarEvento',B.admin,d,!!(n&&n.checked));if(r){toast(r);ui.modal=null;ui.month=d.data.slice(0,7);await loadAdmin();render()}return}
+    r=await act('apiAdminGuardarEvento',B.admin,d,!!(n&&n.checked));if(r){ui.month=d.data.slice(0,7);await loadAdmin();if(r.novo){ui.modal={type:'link',id:r.id,msg:r.msg,novo:true}}else{ui.modal=null;toast(r.msg||r)}render()}return}
   if(k==='notice'){const to=(f.querySelector('[name=n-to]:checked')||{}).value;r=await act('apiAdminNovidade',B.admin,f.dataset.id,val('n-subj'),val('n-body'),to==='reg');if(r){toast(r);ui.modal=null;await loadAdmin();render()}return}
   if(k==='admin-add'){r=await act('apiAdminConvidar',B.admin,val('add-name'),val('add-email'),document.getElementById('add-member').checked);if(r){toast(r);await loadAdmin();render()}return}
   if(k==='settings'){r=await act('apiAdminDefinicoes',B.admin,val('set-org'),val('set-admins'));if(r){toast(r);await loadAdmin();if(A)document.getElementById('orgname').textContent=A.org;render()}return}
