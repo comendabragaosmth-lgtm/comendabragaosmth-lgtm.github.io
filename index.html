@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Comenda de Braga · Calendário</title>
+<style>body{margin:0;font-family:system-ui,sans-serif;background:#f5f4f4;color:#6a6264}.c{display:flex;min-height:100vh;align-items:center;justify-content:center;text-align:center;padding:16px}@media (prefers-color-scheme:dark){body{background:#131112;color:#a99fa1}}</style>
+</head>
+<body>
+<div class="c" id="msg">A carregar o calendário da Comenda de Braga…</div>
+<script>
+var API = 'https://script.google.com/macros/s/AKfycbz1SMPBc6hPkO1bUxZsFZHUeLNSIBI9yckW5h8qL9F33TMes5HArk82c-LU79qrLDpr/exec';
+fetch(API + '?pagina=1', { credentials: 'omit' })
+  .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
+  .then(function (html) {
+    if (html.indexOf('__API__') < 0) throw new Error('resposta');
+    document.open(); document.write(html.split('__API__').join(API)); document.close();
+  })
+  .catch(function () {
+    document.getElementById('msg').innerHTML = 'Não foi possível carregar o calendário. Verifique a ligação à internet e <a href="" style="color:#b0001e">tente de novo</a>.';
+  });
+</script>
+</body>
+</html>
