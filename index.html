@@ -94,7 +94,7 @@ main{padding-block:24px 60px}
 /* forms */
 label{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:.9rem}
 label.inline{flex-direction:row;align-items:center;gap:8px;font-weight:500}
-input[type=text],input[type=email],input[type=tel],input[type=password],input[type=number],input[type=date],input[type=time],select,textarea{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 10px;font-weight:400;width:100%;min-width:0}
+input[type=text],input[type=email],input[type=tel],input[type=password],input[type=search],input[type=number],input[type=date],input[type=time],select,textarea{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 10px;font-weight:400;width:100%;min-width:0}
 textarea{min-height:80px;resize:vertical}
 input[type=checkbox],input[type=radio]{accent-color:var(--red);width:18px;height:18px}
 fieldset{border:1px solid var(--line);border-radius:10px;padding:12px;margin:0;display:flex;flex-direction:column;gap:8px}
@@ -150,6 +150,8 @@ tr.grp td{background:var(--surface-2);font-weight:700;font-family:var(--f-displa
 .pw{position:relative;display:flex}.pw input{padding-right:88px}
 .pwt{position:absolute;right:4px;top:50%;transform:translateY(-50%);border:0;background:transparent;color:var(--red);font:inherit;font-weight:600;font-size:.85rem;padding:6px 10px;cursor:pointer;border-radius:6px}
 .pwt:hover{background:var(--red-soft)}
+.mtools{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-bottom:12px}.mtools label{flex:1;min-width:200px}
+.errlist{max-height:220px;overflow:auto;margin:0;padding-left:20px;font-size:.88rem}
 .linkbox{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.85rem}
 a.btn{text-decoration:none;color:inherit;display:inline-flex;align-items:center}
 a.btn.primary{color:var(--on-red)}
@@ -232,8 +234,8 @@ const myReg=id=>D&&D.me&&D.me.inscricoes.find(r=>r.evento_id===id);
 function peopleOf(eid){
   const out=[];const subs=A.inscritos;
   A.inscricoes.filter(r=>r.evento_id===eid).forEach(r=>{const s=subs.find(x=>x.email===r.email);const m=s&&s.membro;
-    out.push({group:m?'mem':'non',type:m?'Membro':'Inscrito não membro',nome:r.nome,email:r.email,telemovel:r.telemovel,agape:r.agape,visita:!!r.visita,nif:r.nif||'',restricoes:r.restricoes,atividades:r.atividades||[],nota:r.observacoes||''});
-    (r.convidados||[]).forEach(g=>out.push({group:'gst',type:'Convidado',nome:g.nome,email:g.email,telemovel:g.telemovel,agape:g.agape,visita:!!g.visita,nif:'',restricoes:g.restricoes,atividades:g.atividades||[],nota:'Convidado de '+r.nome}));
+    out.push({group:m?'mem':'non',type:m?'Membro':'Inscrito não membro',n_ordem:(s&&s.n_ordem)||'',nome:r.nome,email:r.email,telemovel:r.telemovel,agape:r.agape,visita:!!r.visita,nif:r.nif||'',restricoes:r.restricoes,atividades:r.atividades||[],nota:r.observacoes||''});
+    (r.convidados||[]).forEach(g=>out.push({group:'gst',type:'Convidado',n_ordem:'',nome:g.nome,email:g.email,telemovel:g.telemovel,agape:g.agape,visita:!!g.visita,nif:'',restricoes:g.restricoes,atividades:g.atividades||[],nota:'Convidado de '+r.nome}));
   });return out;
 }
 const countPeople=eid=>A.inscricoes.filter(r=>r.evento_id===eid).reduce((a,r)=>a+1+(r.convidados||[]).length,0);
@@ -266,10 +268,10 @@ function viewCalendarPage(){
 function welcome(){return '<section class="welcome"><img class="arms" src="'+ARMS+'" alt="Brasão da Ordem"><div><h1>'+esc(D.org)+'</h1><p>Calendário de eventos da Comenda. Consulte os próximos encontros e peça para receber os convites e formulários de inscrição por email.</p><div class="motto">Non nobis Domine, non nobis, sed nomini tuo da gloriam</div></div></section>'}
 function subscribeBox(){
   return '<section class="panel"><h2>Receber notificações</h2><p class="muted small" style="margin:0 0 12px">Indique os seus dados para receber os convites e formulários dos eventos. Vai receber um email para confirmar.</p>'+
-  '<form data-form="subscribe" class="stack"><label>Email<input type="email" id="sub-email" required autocomplete="email" placeholder="nome@exemplo.pt"></label><label>Nome completo<input type="text" id="sub-name" required autocomplete="name" placeholder="Ex.: João Silva"></label><div class="f2"><label>Contacto<input type="tel" id="sub-phone" required autocomplete="tel" placeholder="Ex.: 912 345 678"></label><label>Localidade<input type="text" id="sub-city" required autocomplete="address-level2" placeholder="Ex.: Braga"></label></div><label>Nota ou comentário (opcional)<textarea id="sub-note" placeholder="Algo que queira dizer à Comenda"></textarea></label><button class="btn primary">Pedir inscrição</button></form></section>';
+  '<form data-form="subscribe" class="stack"><label>Email<input type="email" id="sub-email" required autocomplete="email" placeholder="nome@exemplo.pt"></label><label>Nome completo<input type="text" id="sub-name" required autocomplete="name" placeholder="Ex.: João Silva"></label><div class="f2"><label>Contacto<input type="tel" id="sub-phone" required autocomplete="tel" placeholder="Ex.: 912 345 678"></label><label>Localidade<input type="text" id="sub-city" required autocomplete="address-level2" placeholder="Ex.: Braga"></label></div><label>Nº da Ordem (opcional, se for membro)<input type="text" id="sub-num" autocomplete="off" placeholder="Ex.: 1234"></label><label>Nota ou comentário (opcional)<textarea id="sub-note" placeholder="Algo que queira dizer à Comenda"></textarea></label><button class="btn primary">Pedir inscrição</button></form></section>';
 }
 function meBox(){const me=D.me;
-  return '<section class="panel"><h2>'+esc(me.nome)+'</h2><p class="small" style="margin:0">'+(me.membro?'<span class="pill mem">Membro</span> Vê também os eventos reservados a membros.':'<span class="pill pub">Inscrito</span> Vê os eventos públicos da Comenda.')+'</p>'+
+  return '<section class="panel"><h2>'+esc(me.nome)+'</h2><p class="small" style="margin:0">'+(me.membro?'<span class="pill mem">Membro'+(me.n_ordem?' nº '+esc(me.n_ordem):'')+'</span> Vê também os eventos reservados a membros.':'<span class="pill pub">Inscrito</span> Vê os eventos públicos da Comenda.')+'</p>'+
   '<p class="small muted" style="margin:8px 0 0">'+esc(me.email)+' · inscrito em '+me.inscricoes.length+' evento(s)</p><p class="small" style="margin:8px 0 0"><a href="'+esc(B.url)+'?sair='+encodeURIComponent(B.token)+'" target="_top" class="lnk">Deixar de receber notificações</a></p></section>';
 }
 function calendar(){
@@ -321,11 +323,12 @@ function viewDefinir(){
   return '<section class="panel narrow stack"><img src="'+ARMS+'" alt="Brasão da Ordem" class="armsmall"><h2>Definir palavra-passe</h2><p class="muted small" style="margin:0">Escolha uma palavra-passe com pelo menos 8 caracteres. Só o senhor a fica a saber.</p><form data-form="definir" class="stack">'+pwField('pw1','Nova palavra-passe','new-password')+pwField('pw2','Repetir a palavra-passe','new-password')+'<button class="btn primary">Guardar e entrar</button></form></section>';
 }
 function viewAdmin(){
-  const tabs=[['eventos','Eventos'],['inscritos','Inscritos'],['inscricoes','Inscrições'],['definicoes','Definições']];
+  const tabs=[['eventos','Eventos'],['inscritos','Inscritos'],['membros','Membros'],['inscricoes','Inscrições'],['definicoes','Definições']];
   let h='<div class="tabs" role="tablist">'+tabs.map(t=>'<button role="tab" aria-selected="'+(ui.tab===t[0])+'" data-act="tab" data-v="'+t[0]+'">'+t[1]+'</button>').join('')+'</div>';
   if(A.fila.pendentes||A.fila.erros)h+='<div class="note" style="margin-bottom:14px">Emails em fila: <b>'+A.fila.pendentes+'</b>'+(A.fila.erros?' · com erro: <b>'+A.fila.erros+'</b>':'')+'. Envios disponíveis hoje: '+A.fila.quota+'. O que exceder o limite diário segue automaticamente no dia seguinte.</div>';
   if(ui.tab==='eventos') h+=adminEvents();
   if(ui.tab==='inscritos') h+=adminSubs();
+  if(ui.tab==='membros') h+=adminMembers();
   if(ui.tab==='inscricoes') h+=adminRegs();
   if(ui.tab==='definicoes') h+=adminSettings();
   return h;
@@ -340,7 +343,7 @@ function adminEvents(){
 function adminSubs(){
   const S=A.inscritos;const conf=S.filter(s=>s.estado==='confirmado').length;
   const rows=S.map(s=>{const pr=ui.pending==='rm-'+s.email;
-    return '<tr><td>'+esc(s.nome||'—')+'</td><td>'+esc(s.email)+'</td><td class="nw">'+esc(s.telemovel||'—')+'</td><td>'+esc(s.localidade||'—')+'</td><td class="notecell">'+esc(s.nota||'—')+'</td><td>'+(s.estado==='confirmado'?'<span class="pill ok">Confirmado</span>':'<span class="pill warn">Pendente</span>')+'</td>'+
+    return '<tr><td>'+esc(s.nome||'—')+(s.n_ordem?' <span class="pill mem">nº '+esc(s.n_ordem)+'</span>':'')+'</td><td>'+esc(s.email)+'</td><td class="nw">'+esc(s.telemovel||'—')+'</td><td>'+esc(s.localidade||'—')+'</td><td class="notecell">'+esc(s.nota||'—')+'</td><td>'+(s.estado==='confirmado'?'<span class="pill ok">Confirmado</span>':'<span class="pill warn">Pendente</span>')+'</td>'+
     '<td><label class="inline"><input type="checkbox" data-change="member" data-email="'+esc(s.email)+'"'+(s.membro?' checked':'')+'> Membro</label></td><td><div class="row">'+
     (s.estado!=='confirmado'?'<button class="btn sm" data-act="resend" data-email="'+esc(s.email)+'">Reenviar confirmação</button>':'')+
     (pr?'<button class="btn sm danger" data-act="rm-sub" data-email="'+esc(s.email)+'">Confirmar remoção</button><button class="btn sm" data-act="pending-clear">Não</button>':'<button class="btn sm danger" data-act="ask-rm" data-email="'+esc(s.email)+'">Remover</button>')+'</div></td></tr>'}).join('');
@@ -349,6 +352,59 @@ function adminSubs(){
   '<div class="tablewrap"><table><thead><tr><th>Nome</th><th>Email</th><th>Contacto</th><th>Localidade</th><th>Nota</th><th>Estado</th><th>Tipo</th><th>Ações</th></tr></thead><tbody>'+(rows||'<tr><td colspan="8" class="muted">Ainda ninguém se inscreveu.</td></tr>')+'</tbody></table></div>'+
   '<form data-form="admin-add" class="row" style="margin-top:14px;align-items:flex-end"><label style="flex:1;min-width:180px">Nome<input type="text" id="add-name" required></label><label style="flex:1;min-width:200px">Email<input type="email" id="add-email" required></label><label class="inline"><input type="checkbox" id="add-member" checked> Membro</label><button class="btn">Enviar convite</button></form></section>';
 }
+/* ---------- membros ---------- */
+const MCAMPOS=[['n_ordem','Nº da Ordem'],['nome','Nome'],['email','Email'],['telemovel','Telemóvel'],['localidade','Localidade'],['grau','Grau / cargo'],['data_admissao','Data de admissão'],['nif','NIF'],['notas','Notas']];
+const fmtData=d=>/^\d{4}-\d\d-\d\d$/.test(d||'')?d.split('-').reverse().join('/'):(d||'');
+function memberRows(){
+  const q=(ui.q||'').toLowerCase().trim();const subs={};A.inscritos.forEach(s=>subs[s.email]=s);
+  const L=A.membros.filter(m=>!q||MCAMPOS.some(c=>String(m[c[0]]||'').toLowerCase().includes(q)));
+  if(!L.length)return '<tr><td colspan="9" class="muted">'+(A.membros.length?'Nenhum membro corresponde à pesquisa.':'Ainda não há membros. Adicione um a um ou importe um ficheiro Excel/CSV.')+'</td></tr>';
+  return L.map(m=>{const s=m.email&&subs[m.email];const pr=ui.pending==='rmm-'+m.n_ordem;
+    return '<tr><td class="nw"><b>'+esc(m.n_ordem)+'</b></td><td>'+esc(m.nome)+(m.grau?'<div class="small muted">'+esc(m.grau)+'</div>':'')+'</td><td>'+esc(m.email||'—')+'</td><td class="nw">'+esc(m.telemovel||'—')+'</td><td>'+esc(m.localidade||'—')+'</td><td class="nw">'+esc(fmtData(m.data_admissao)||'—')+'</td><td class="nw">'+esc(m.nif||'—')+'</td>'+
+    '<td>'+(s?(s.estado==='confirmado'?'<span class="pill ok">Recebe</span>':'<span class="pill warn">Pendente</span>'):'<span class="small muted">Não inscrito</span>')+'</td>'+
+    '<td><div class="row"><button class="btn sm" data-act="edit-mem" data-v="'+esc(m.n_ordem)+'">Editar</button>'+(pr?'<button class="btn sm danger" data-act="rm-mem" data-v="'+esc(m.n_ordem)+'">Confirmar remoção</button><button class="btn sm" data-act="pending-clear">Não</button>':'<button class="btn sm danger" data-act="ask-rm-mem" data-v="'+esc(m.n_ordem)+'">Remover</button>')+'</div></td></tr>'}).join('');
+}
+function adminMembers(){
+  const n=A.membros.length,ins=A.membros.filter(m=>m.email&&A.inscritos.some(s=>s.email===m.email&&s.estado==='confirmado')).length;
+  return '<section class="panel"><div class="row" style="justify-content:space-between;margin-bottom:10px"><h2 style="margin:0">Base de membros</h2><span class="small muted">'+n+' membros · '+ins+' recebem notificações</span></div>'+
+  '<p class="small muted" style="margin-top:0">Quem se inscrever nas notificações com um email ou nº da Ordem desta base fica logo identificado como membro. Não é enviado nenhum email ao adicionar membros.</p>'+
+  '<div class="mtools"><label>Pesquisar<input type="search" id="mem-q" data-input="mem-q" value="'+esc(ui.q||'')+'" placeholder="Nome, nº, email, localidade…"></label><button class="btn primary" data-act="new-mem">Novo membro</button><button class="btn" data-act="import-mem">Importar Excel/CSV</button><button class="btn" data-act="tpl-mem">Descarregar modelo</button><input type="file" id="mem-file" accept=".csv,.xlsx,.xls,.ods,text/csv" hidden data-change="mem-file"></div>'+
+  '<div class="tablewrap"><table><thead><tr><th>Nº</th><th>Nome</th><th>Email</th><th>Telemóvel</th><th>Localidade</th><th>Admissão</th><th>NIF</th><th>Notificações</th><th>Ações</th></tr></thead><tbody id="mem-body">'+memberRows()+'</tbody></table></div></section>';
+}
+function memberForm(m){const x=m||{};
+  return '<h2>'+(m?'Editar membro':'Novo membro')+'</h2><form data-form="membro" data-v="'+esc(m?m.n_ordem:'')+'" class="stack">'+
+  '<div class="f2"><label>Nº da Ordem<input type="text" id="m-n_ordem" required value="'+esc(x.n_ordem||'')+'"></label><label>Grau / cargo (opcional)<input type="text" id="m-grau" value="'+esc(x.grau||'')+'"></label></div>'+
+  '<label>Nome completo<input type="text" id="m-nome" required value="'+esc(x.nome||'')+'"></label>'+
+  '<div class="f2"><label>Email<input type="email" id="m-email" value="'+esc(x.email||'')+'"></label><label>Telemóvel<input type="tel" id="m-telemovel" value="'+esc(x.telemovel||'')+'"></label></div>'+
+  '<div class="f2"><label>Localidade<input type="text" id="m-localidade" value="'+esc(x.localidade||'')+'"></label><label>Data de admissão<input type="date" id="m-data_admissao" value="'+esc(/^\d{4}-\d\d-\d\d$/.test(x.data_admissao||'')?x.data_admissao:'')+'"></label></div>'+
+  '<label>NIF (opcional)<input type="text" id="m-nif" inputmode="numeric" value="'+esc(x.nif||'')+'"></label>'+
+  '<label>Notas (opcional)<textarea id="m-notas">'+esc(x.notas||'')+'</textarea></label>'+
+  '<p class="small muted" style="margin:0">O email é o que permite reconhecer o membro quando se inscreve. Sem email, é reconhecido só pelo nº da Ordem.</p>'+
+  '<button class="btn primary">'+(m?'Guardar alterações':'Adicionar membro')+'</button></form>';
+}
+/* importação */
+const MAPA=[['n_ordem',/^(n[ºo°.]*\s*(da\s*)?ordem|n[ºo°.]*|numero|número|num|nr|n_ordem|nº\s*membro|numero\s*de\s*membro|número\s*de\s*membro|id)$/],['nome',/^(nome|nome\s*completo|name)$/],['email',/^(e-?mail|correio\s*electr[oó]nico|correio\s*eletr[oó]nico)$/],['telemovel',/^(telem[oó]vel|telefone|contacto|contato|tel|phone|m[oó]vel)$/],['localidade',/^(localidade|cidade|morada|concelho)$/],['grau',/^(grau|cargo|grau\s*\/\s*cargo|posto|dignidade)$/],['data_admissao',/^(data\s*(de\s*)?admiss[aã]o|admiss[aã]o|data\s*entrada|entrada|investidura|data\s*investidura)$/],['nif',/^(nif|contribuinte|n[ºo°.]*\s*contribuinte)$/],['notas',/^(notas?|observa[cç][oõ]es|obs)$/]];
+const normH=h=>String(h||'').trim().toLowerCase().replace(/\s+/g,' ').replace(/[:.]$/,'');
+function mapear(cab){return cab.map(h=>{const n=normH(h);const m=MAPA.find(x=>x[1].test(n));return m?m[0]:null})}
+function parseCSV(t){t=t.replace(/^\ufeff/,'');const first=t.split(/\r?\n/)[0]||'';const d=(first.split(';').length>first.split(',').length)?';':(first.split('\t').length>first.split(',').length?'\t':',');
+  const out=[];let row=[],f='',q=false;for(let i=0;i<t.length;i++){const c=t[i];
+    if(q){if(c==='"'){if(t[i+1]==='"'){f+='"';i++}else q=false}else f+=c}
+    else if(c==='"')q=true;else if(c===d){row.push(f);f=''}else if(c==='\n'||c==='\r'){if(c==='\r'&&t[i+1]==='\n')i++;row.push(f);out.push(row);row=[];f=''}else f+=c}
+  if(f!==''||row.length){row.push(f);out.push(row)}return out}
+function loadXLSX(){return window.XLSX?Promise.resolve(window.XLSX):new Promise((ok,ko)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';s.onload=()=>ok(window.XLSX);s.onerror=()=>ko(new Error('Não foi possível abrir o leitor de Excel. Guarde o ficheiro como CSV e tente de novo.'));document.head.appendChild(s)})}
+const xDate=v=>v instanceof Date?v.getFullYear()+'-'+pad(v.getMonth()+1)+'-'+pad(v.getDate()):v;
+async function lerFicheiro(file){
+  let rows;
+  if(/\.(xlsx|xls|ods)$/i.test(file.name)){const X=await loadXLSX();const wb=X.read(await file.arrayBuffer(),{type:'array',cellDates:true});const ws=wb.Sheets[wb.SheetNames[0]];rows=X.utils.sheet_to_json(ws,{header:1,raw:true,defval:''}).map(r=>r.map(v=>String(xDate(v)==null?'':xDate(v)).trim()))}
+  else{let t=await file.text();if(t.includes('\ufffd')){t=new TextDecoder('windows-1252').decode(await file.arrayBuffer())}rows=parseCSV(t).map(r=>r.map(v=>v.trim()))}
+  rows=rows.filter(r=>r.some(v=>v!==''));
+  // procura a linha de cabeçalho nas primeiras 10 linhas
+  let hi=-1,map=null;for(let i=0;i<Math.min(10,rows.length);i++){const m=mapear(rows[i]);if(m.includes('nome')&&m.includes('n_ordem')){hi=i;map=m;break}}
+  if(hi<0)throw new Error('Não encontrámos as colunas «Nº da Ordem» e «Nome» no ficheiro. Use o modelo («Descarregar modelo»).');
+  const linhas=rows.slice(hi+1).map((r,i)=>{const d={};map.forEach((k,j)=>{if(k&&r[j]!==undefined&&d[k]===undefined)d[k]=r[j]});return {linha:hi+i+2,dados:d}});
+  return {linhas,colunas:map.filter(Boolean).map(k=>(MCAMPOS.find(c=>c[0]===k)||[k,k])[1]),ignoradas:rows[hi].filter((h,j)=>!map[j]&&String(h).trim())};
+}
+function baixar(nome,txt,tipo){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+txt],{type:tipo}));a.download=nome;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500)}
 function adminRegs(){
   const all=sorted(A.eventos);
   if(!ui.regEv||!ev(ui.regEv)) ui.regEv=(sorted(all.filter(e=>e.data>=A.hoje))[0]||all[0]||{}).id;
@@ -360,8 +416,8 @@ function adminRegs(){
   if(f.agape) tiles+='<div class="tile"><b>'+P.filter(p=>p.agape).length+'</b><span>Ágape / almoço</span></div>';
   if(f.visita) tiles+='<div class="tile"><b>'+P.filter(p=>p.visita).length+'</b><span>Visita</span></div>';
   e.atividades.forEach(a=>{tiles+='<div class="tile"><b>'+P.filter(p=>p.atividades.includes(a)).length+'</b><span>'+esc(a)+'</span></div>'});
-  const cols=['Nome','Email','Telemóvel'].concat(f.nif?['NIF']:[],f.agape?['Ágape']:[],f.visita?['Visita']:[],f.restricoes?['Restrições']:[],e.atividades.length?['Atividades']:[],['Notas']);
-  const row=p=>'<tr><td>'+esc(p.nome)+'</td><td>'+esc(p.email||'—')+'</td><td class="nw">'+esc(p.telemovel||'—')+'</td>'+(f.nif?'<td class="nw">'+esc(p.nif||'—')+'</td>':'')+(f.agape?'<td>'+(p.agape?'Sim':'Não')+'</td>':'')+(f.visita?'<td>'+(p.visita?'Sim':'Não')+'</td>':'')+(f.restricoes?'<td>'+esc(p.restricoes||'—')+'</td>':'')+(e.atividades.length?'<td>'+esc(p.atividades.join('; ')||'—')+'</td>':'')+'<td>'+esc(p.nota||'—')+'</td></tr>';
+  const cols=['Nº','Nome','Email','Telemóvel'].concat(f.nif?['NIF']:[],f.agape?['Ágape']:[],f.visita?['Visita']:[],f.restricoes?['Restrições']:[],e.atividades.length?['Atividades']:[],['Notas']);
+  const row=p=>'<tr><td class="nw">'+esc(p.n_ordem||'—')+'</td><td>'+esc(p.nome)+'</td><td>'+esc(p.email||'—')+'</td><td class="nw">'+esc(p.telemovel||'—')+'</td>'+(f.nif?'<td class="nw">'+esc(p.nif||'—')+'</td>':'')+(f.agape?'<td>'+(p.agape?'Sim':'Não')+'</td>':'')+(f.visita?'<td>'+(p.visita?'Sim':'Não')+'</td>':'')+(f.restricoes?'<td>'+esc(p.restricoes||'—')+'</td>':'')+(e.atividades.length?'<td>'+esc(p.atividades.join('; ')||'—')+'</td>':'')+'<td>'+esc(p.nota||'—')+'</td></tr>';
   const grp=(t,list)=>'<tr class="grp"><td colspan="'+cols.length+'">'+t+' <span class="muted">('+list.length+')</span></td></tr>'+(list.length?list.map(row).join(''):'<tr><td colspan="'+cols.length+'" class="muted">Nenhum.</td></tr>');
   return '<section class="panel"><div class="row" style="margin-bottom:12px"><label style="flex:1;min-width:220px">Evento<select data-change="regev">'+all.map(x=>'<option value="'+x.id+'"'+(x.id===e.id?' selected':'')+'>'+esc(x.data.split('-').reverse().join('/')+' · '+x.titulo)+'</option>').join('')+'</select></label><button class="btn" data-act="csv" style="align-self:flex-end">Copiar tabela</button><a class="btn" href="'+esc(A.folha)+'" target="_blank" rel="noopener" style="align-self:flex-end">Abrir folha Google</a></div>'+
   '<div class="tiles">'+tiles+'</div>'+
@@ -394,6 +450,9 @@ function modal(){
     '<p class="small muted" style="margin:0">Inscrições até '+esc(fmtLong(e.prazo))+(e.lotacao?' · lotação '+esc(e.lotacao)+' pessoas':'')+'</p>'+a;
   }
   if(M.type==='link'){const l=evLink(e.id);return '<h2>'+(M.novo?'Evento criado':'Link do evento')+'</h2>'+(M.msg?'<p style="margin:0">'+esc(M.msg)+'</p>':'')+'<div><b>'+esc(e.titulo)+'</b><div class="small muted">'+esc(fmtLong(e.data)+' às '+e.hora)+'</div></div><label>Link para partilhar<input type="text" readonly id="ev-link" class="linkbox" value="'+esc(l)+'"></label><div class="row"><button class="btn primary" data-act="copy-link" data-id="'+e.id+'">Copiar link</button><button class="btn" data-act="modal-close">Fechar</button></div>'+(e.visibilidade==='membros'?'<div class="note small">Este evento é só para membros: só o veem pelo link as pessoas marcadas como membro, depois de entrarem pelo link dos seus emails.</div>':'<div class="note small">Quem abrir o link vê o evento. Para se inscrever, a pessoa tem de pedir para receber as notificações.</div>')}
+  if(M.type==='membro') return memberForm(M.v?A.membros.find(m=>m.n_ordem===M.v):null);
+  if(M.type==='import'){const I=M.data;return '<h2>Importar membros</h2><p style="margin:0"><b>'+esc(M.file)+'</b>: '+I.linhas.length+' linha(s) com dados.</p><div class="note small"><b>Colunas reconhecidas:</b> '+esc(I.colunas.join(', '))+(I.ignoradas.length?'<br><b>Ignoradas:</b> '+esc(I.ignoradas.join(', ')):'')+'</div><p class="small muted" style="margin:0">Os membros que já existem (mesmo nº da Ordem ou mesmo email) são atualizados com os dados do ficheiro. Não é enviado nenhum email.</p><div class="row"><button class="btn primary" data-act="do-import">Importar '+I.linhas.length+' membro(s)</button><button class="btn" data-act="modal-close">Cancelar</button></div>'}
+  if(M.type==='import-res'){const R=M.res;return '<h2>Importação concluída</h2><div class="tiles"><div class="tile"><b>'+R.novos+'</b><span>Novos</span></div><div class="tile"><b>'+R.atualizados+'</b><span>Atualizados</span></div><div class="tile'+(R.erros.length?' hi':'')+'"><b>'+R.erros.length+'</b><span>Com erro</span></div></div>'+(R.inscritosMarcados?'<p class="small" style="margin:0">'+R.inscritosMarcados+' pessoa(s) já inscrita(s) nas notificações passaram a membro.</p>':'')+(R.erros.length?'<div><b class="small">Linhas não importadas</b><ul class="errlist">'+R.erros.map(x=>'<li>Linha '+x.linha+': '+esc(x.motivo)+'</li>').join('')+'</ul></div>':'')+'<button class="btn primary" data-act="modal-close">Fechar</button>'}
   if(M.type==='reg') return regForm(e);
   if(M.type==='editor') return editor(e);
   if(M.type==='notice') return '<h2>Enviar novidade</h2><p class="muted small" style="margin:0">'+esc(e.titulo)+'</p><form data-form="notice" class="stack" data-id="'+e.id+'"><label>Assunto<input type="text" id="n-subj" required value="Novidade: '+esc(e.titulo)+'"></label><label>Mensagem<textarea id="n-body" required placeholder="Ex.: O ágape será no Restaurante X. Estacionamento disponível."></textarea></label>'+
@@ -403,10 +462,10 @@ function modal(){
 function regForm(e){
   const me=D.me;const r=myReg(e.id)||{};const f=e.campos;
   let h='<h2>Inscrição</h2><div><b>'+esc(e.titulo)+'</b><div class="small muted">'+esc(fmtLong(e.data)+' às '+e.hora+' · '+e.local)+'</div></div>';
-  h+=r.nome?'<div class="note">Já está inscrito. Pode alterar as respostas e guardar de novo.</div>':'<div class="note">Os seus dados foram preenchidos a partir da base de dados. Confirme-os.</div>';
+  h+=r.nome?'<div class="note">Já está inscrito. Pode alterar as respostas e guardar de novo.</div>':'<div class="note">'+(me.n_ordem?'Identificado como membro nº <b>'+esc(me.n_ordem)+'</b>. ':'')+'Os seus dados foram preenchidos a partir da base de dados. Confirme-os.</div>';
   h+='<form data-form="reg" data-id="'+e.id+'" class="stack"><label>Email<input type="email" value="'+esc(me.email)+'" disabled></label><label>Nome completo<input type="text" id="r-name" required value="'+esc(r.nome||me.nome||'')+'"></label>';
   if(f.telemovel) h+='<label>Telemóvel<input type="tel" id="r-phone" value="'+esc(r.telemovel||me.telemovel||'')+'"></label>';
-  if(f.nif) h+='<label>NIF (opcional)<input type="text" id="r-nif" inputmode="numeric" maxlength="20" autocomplete="off" value="'+esc(r.nif||'')+'"></label>';
+  if(f.nif) h+='<label>NIF (opcional)<input type="text" id="r-nif" inputmode="numeric" maxlength="20" autocomplete="off" value="'+esc(r.nif||me.nif||'')+'"></label>';
   if(f.agape) h+='<fieldset><legend>Fica para o ágape / almoço?</legend><div class="row"><label class="inline"><input type="radio" name="r-agape" value="1"'+(r.nome&&r.agape?' checked':'')+' required> Sim</label><label class="inline"><input type="radio" name="r-agape" value="0"'+(r.nome&&!r.agape?' checked':'')+'> Não</label></div></fieldset>';
   if(f.visita) h+='<fieldset><legend>Participa na visita?</legend><div class="row"><label class="inline"><input type="radio" name="r-visita" value="1"'+(r.nome&&r.visita?' checked':'')+' required> Sim</label><label class="inline"><input type="radio" name="r-visita" value="0"'+(r.nome&&!r.visita?' checked':'')+'> Não</label></div></fieldset>';
   if(f.restricoes) h+='<label>Restrições alimentares<input type="text" id="r-diet" placeholder="Ex.: vegetariano, alergia a marisco" value="'+esc(r.restricoes||'')+'"></label>';
@@ -474,6 +533,13 @@ document.addEventListener('click',async ev_=>{
     case 'copy-link': {const l=evLink(id);const ok=()=>toast('Link copiado. Pode colá-lo num email ou mensagem.');
       const fb=()=>{const i=document.getElementById('ev-link');if(i){i.focus();i.select();try{document.execCommand('copy')?ok():toast('Selecione o link e copie-o.')}catch(err){toast('Selecione o link e copie-o.')}}else{ui.modal={type:'link',id};renderLayer()}};
       try{navigator.clipboard.writeText(l).then(ok,fb)}catch(err){fb()}return}
+    case 'new-mem': ui.modal={type:'membro',v:''};break;
+    case 'edit-mem': ui.modal={type:'membro',v};break;
+    case 'ask-rm-mem': ui.pending='rmm-'+v;break;
+    case 'rm-mem': r=await act('apiAdminRemoverMembro',B.admin,v);if(r){toast(r);ui.pending=null;await loadAdmin()}break;
+    case 'import-mem': {const i=document.getElementById('mem-file');i.value='';i.click();return}
+    case 'tpl-mem': baixar('modelo_membros.csv',MCAMPOS.map(c=>c[1]).join(';')+'\n1234;João Exemplo Silva;joao@exemplo.pt;912345678;Braga;Cavaleiro;15/03/2020;123456789;\n','text/csv;charset=utf-8');return;
+    case 'do-import': {const I=ui.modal.data;r=await act('apiAdminImportarMembros',B.admin,I.linhas);if(r){await loadAdmin();ui.modal={type:'import-res',res:r};render()}return}
     case 'forgot': ev_.preventDefault();ui.forgot=v==='1';ui.msg=null;break;
     case 'logout': await act('apiAdminSair',B.admin);sSet('');B.admin='';A=null;ui.msg='Sessão terminada.';break;
     case 'sair': r=await act('apiSair',B.token);if(r){ui.msg=r;D&&(D.me=null)}break;
@@ -483,21 +549,23 @@ document.addEventListener('click',async ev_=>{
     case 'resend': r=await act('apiAdminReenviar',B.admin,email);if(r){toast(r);await loadAdmin()}break;
     case 'rm-sub': r=await act('apiAdminRemover',B.admin,email);if(r){toast(r);ui.pending=null;await loadAdmin()}break;
     case 'csv': {const e=ev(ui.regEv);const P=peopleOf(e.id);const q=x=>'"'+String(x==null?'':x).replace(/"/g,'""')+'"';
-      const txt=[['Tipo','Nome','Email','Telemóvel','NIF','Ágape','Visita','Restrições','Atividades','Notas'].map(q).join('\t')].concat(P.map(p=>[p.type,p.nome,p.email,p.telemovel,p.nif,p.agape?'Sim':'Não',p.visita?'Sim':'Não',p.restricoes,p.atividades.join('; '),p.nota].map(q).join('\t'))).join('\n');
+      const txt=[['Tipo','Nº Ordem','Nome','Email','Telemóvel','NIF','Ágape','Visita','Restrições','Atividades','Notas'].map(q).join('\t')].concat(P.map(p=>[p.type,p.n_ordem,p.nome,p.email,p.telemovel,p.nif,p.agape?'Sim':'Não',p.visita?'Sim':'Não',p.restricoes,p.atividades.join('; '),p.nota].map(q).join('\t'))).join('\n');
       try{navigator.clipboard.writeText(txt).then(()=>toast('Tabela copiada. Cole numa folha de cálculo.'),()=>toast('Não foi possível copiar. Use «Abrir folha Google».'))}catch(err){toast('Não foi possível copiar. Use «Abrir folha Google».')}return}
     default: return;
   }
   render();
 });
+document.addEventListener('input',e_=>{if(e_.target.dataset.input==='mem-q'){ui.q=e_.target.value;const b=document.getElementById('mem-body');if(b)b.innerHTML=memberRows()}});
 document.addEventListener('change',async e_=>{
   const t=e_.target,c=t.dataset.change;if(!c)return;
   if(c==='regev'){ui.regEv=t.value;render()}
+  if(c==='mem-file'){const file=t.files&&t.files[0];if(!file)return;try{const I=await lerFicheiro(file);if(!I.linhas.length)throw new Error('O ficheiro não tem linhas com dados por baixo do cabeçalho.');ui.modal={type:'import',data:I,file:file.name};renderLayer()}catch(err){toast(errMsg(err))}}
   if(c==='member'){const r=await act('apiAdminMembro',B.admin,t.dataset.email,t.checked);if(r){toast(r);const s=A.inscritos.find(x=>x.email===t.dataset.email);if(s)s.membro=t.checked}else t.checked=!t.checked}
 });
 const val=id=>{const el=document.getElementById(id);return el?el.value.trim():''};
 document.addEventListener('submit',async e_=>{
   e_.preventDefault();const f=e_.target,k=f.dataset.form;let r;
-  if(k==='subscribe'){r=await act('apiSubscrever',{email:val('sub-email'),nome:val('sub-name'),telemovel:val('sub-phone'),localidade:val('sub-city'),nota:val('sub-note')});
+  if(k==='subscribe'){r=await act('apiSubscrever',{email:val('sub-email'),nome:val('sub-name'),telemovel:val('sub-phone'),localidade:val('sub-city'),nota:val('sub-note'),n_ordem:val('sub-num')});
     if(r){f.outerHTML='<div class="note ok-note">'+esc(r)+'</div>'}return}
   if(k==='admin-login'){r=await act('apiAdminLogin',val('adm-email'),document.getElementById('adm-pw').value);if(r){sSet(r);B.admin=r;ui.msg=null;await loadAdmin();render()}return}
   if(k==='admin-forgot'){r=await act('apiAdminPedirPassword',val('adm-email'));if(r){ui.msg=r;ui.forgot=false;render()}return}
@@ -512,6 +580,7 @@ document.addEventListener('submit',async e_=>{
     const n=document.getElementById('ed-notify');
     r=await act('apiAdminGuardarEvento',B.admin,d,!!(n&&n.checked));if(r){ui.month=d.data.slice(0,7);await loadAdmin();if(r.novo){ui.modal={type:'link',id:r.id,msg:r.msg,novo:true}}else{ui.modal=null;toast(r.msg||r)}render()}return}
   if(k==='notice'){const to=(f.querySelector('[name=n-to]:checked')||{}).value;r=await act('apiAdminNovidade',B.admin,f.dataset.id,val('n-subj'),val('n-body'),to==='reg');if(r){toast(r);ui.modal=null;await loadAdmin();render()}return}
+  if(k==='membro'){const m={};MCAMPOS.forEach(c=>m[c[0]]=val('m-'+c[0]));r=await act('apiAdminGuardarMembro',B.admin,m,f.dataset.v||'');if(r){toast(r);ui.modal=null;await loadAdmin();render()}return}
   if(k==='admin-add'){r=await act('apiAdminConvidar',B.admin,val('add-name'),val('add-email'),document.getElementById('add-member').checked);if(r){toast(r);await loadAdmin();render()}return}
   if(k==='settings'){r=await act('apiAdminDefinicoes',B.admin,val('set-org'),val('set-admins'));if(r){toast(r);await loadAdmin();if(A)document.getElementById('orgname').textContent=A.org;render()}return}
 });
