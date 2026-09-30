@@ -392,39 +392,44 @@ function adminSubs(){
   '<form data-form="admin-add" class="row" style="margin-top:14px;align-items:flex-end"><label style="flex:1;min-width:180px">Nome<input type="text" id="add-name" required></label><label style="flex:1;min-width:200px">Email<input type="email" id="add-email" required></label><label class="inline"><input type="checkbox" id="add-member" checked> Membro</label><button class="btn">Enviar convite</button></form></section>';
 }
 /* ---------- membros ---------- */
-const MCAMPOS=[['n_ordem','Nº da Ordem'],['nome','Nome'],['email','Email'],['telemovel','Telemóvel'],['localidade','Localidade'],['grau','Grau / cargo'],['data_admissao','Data de admissão'],['nif','NIF'],['notas','Notas'],['direcao','Direção']];
+const MCAMPOS=[['n_ordem','Nº da Ordem'],['nome','Nome'],['email','Email'],['telemovel','Telemóvel'],['localidade','Localidade'],['grau','Grau / cargo'],['data_admissao','Data de admissão'],['nif','NIF'],['notas','Notas'],['direcao','Direção'],['tipo','Tipo']];
+const mkey=m=>m.n_ordem||m.email||'';const ehConv=m=>m.tipo==='CONVIDADO'||!m.n_ordem;
 const fmtData=d=>/^\d{4}-\d\d-\d\d$/.test(d||'')?d.split('-').reverse().join('/'):(d||'');
 function memberRows(){
   const q=(ui.q||'').toLowerCase().trim();const subs={};A.inscritos.forEach(s=>subs[s.email]=s);
   const L=A.membros.filter(m=>!q||MCAMPOS.some(c=>String(m[c[0]]||'').toLowerCase().includes(q)));
   if(!L.length)return '<tr><td colspan="10" class="muted">'+(A.membros.length?'Nenhum membro corresponde à pesquisa.':'Ainda não há membros. Adicione um a um ou importe um ficheiro Excel/CSV.')+'</td></tr>';
-  return L.map(m=>{const s=m.email&&subs[m.email];const pr=ui.pending==='rmm-'+m.n_ordem;
-    return '<tr><td class="nw"><b>'+esc(m.n_ordem)+'</b></td><td>'+esc(m.nome)+(m.direcao==='SIM'?' <span class="pill dir">Direção</span>':'')+(m.grau?'<div class="small muted">'+esc(m.grau)+'</div>':'')+'</td><td>'+esc(m.email||'—')+'</td><td class="nw">'+esc(m.telemovel||'—')+'</td><td>'+esc(m.localidade||'—')+'</td><td class="nw">'+esc(fmtData(m.data_admissao)||'—')+'</td><td class="nw">'+esc(m.nif||'—')+'</td>'+
-    '<td>'+(s?(s.estado==='confirmado'?'<span class="pill ok">Recebe</span>':'<span class="pill warn">Pendente</span>'):'<span class="small muted">Não inscrito</span>')+'</td>'+
+  return L.map(m=>{const s=m.email&&subs[m.email];const k=mkey(m);const pr=ui.pending==='rmm-'+k;const on=s&&s.estado==='confirmado';
+    return '<tr><td class="nw">'+(ehConv(m)?'<span class="pill">Convidado</span>':'<b>'+esc(m.n_ordem)+'</b>')+'</td><td>'+esc(m.nome)+(m.direcao==='SIM'?' <span class="pill dir">Direção</span>':'')+(m.grau?'<div class="small muted">'+esc(m.grau)+'</div>':'')+'</td><td>'+esc(m.email||'—')+'</td><td class="nw">'+esc(m.telemovel||'—')+'</td><td>'+esc(m.localidade||'—')+'</td><td class="nw">'+esc(fmtData(m.data_admissao)||'—')+'</td><td class="nw">'+esc(m.nif||'—')+'</td>'+
+    '<td class="nw"><label class="inline" title="'+(m.email?(on?'Desligar as notificações':'Ativar as notificações (envia um email de boas-vindas)'):'Precisa de email para receber notificações')+'"><input type="checkbox" data-change="notif" data-k="'+esc(k)+'"'+(on?' checked':'')+(m.email?'':' disabled')+'> '+(on?'<span class="pill ok">Recebe</span>':s?'<span class="pill warn">Pendente</span>':'<span class="small muted">Desligado</span>')+'</label></td>'+
     '<td><label class="inline" title="'+(m.email?'Tornar administrador':'Precisa de email para ser administrador')+'"><input type="checkbox" data-change="adm" data-email="'+esc(m.email||'')+'"'+(m.email&&A.admins.includes(m.email.toLowerCase())?' checked':'')+(m.email?'':' disabled')+'> Admin</label></td>'+
-    '<td><div class="row"><button class="btn sm" data-act="edit-mem" data-v="'+esc(m.n_ordem)+'">Editar</button>'+(pr?'<button class="btn sm danger" data-act="rm-mem" data-v="'+esc(m.n_ordem)+'">Confirmar remoção</button><button class="btn sm" data-act="pending-clear">Não</button>':'<button class="btn sm danger" data-act="ask-rm-mem" data-v="'+esc(m.n_ordem)+'">Remover</button>')+'</div></td></tr>'}).join('');
+    '<td><div class="row"><button class="btn sm" data-act="edit-mem" data-v="'+esc(k)+'">Editar</button>'+(pr?'<button class="btn sm danger" data-act="rm-mem" data-v="'+esc(k)+'">Confirmar remoção</button><button class="btn sm" data-act="pending-clear">Não</button>':'<button class="btn sm danger" data-act="ask-rm-mem" data-v="'+esc(k)+'">Remover</button>')+'</div></td></tr>'}).join('');
 }
 function adminMembers(){
-  const n=A.membros.length,ins=A.membros.filter(m=>m.email&&A.inscritos.some(s=>s.email===m.email&&s.estado==='confirmado')).length;
-  return '<section class="panel"><div class="row" style="justify-content:space-between;margin-bottom:10px"><h2 style="margin:0">Base de membros</h2><span class="small muted">'+n+' membros · '+ins+' recebem notificações</span></div>'+
-  '<p class="small muted" style="margin-top:0">Quem se inscrever nas notificações com um email ou nº da Ordem desta base fica logo identificado como membro. Não é enviado nenhum email ao adicionar membros.</p>'+
-  '<div class="mtools"><label>Pesquisar<input type="search" id="mem-q" data-input="mem-q" value="'+esc(ui.q||'')+'" placeholder="Nome, nº, email, localidade…"></label><button class="btn primary" data-act="new-mem">Novo membro</button><button class="btn" data-act="import-mem">Importar Excel/CSV</button><button class="btn" data-act="tpl-mem">Descarregar modelo</button><input type="file" id="mem-file" accept=".csv,.xlsx,.xls,.ods,text/csv" hidden data-change="mem-file"></div>'+
+  const nc=A.membros.filter(ehConv).length,n=A.membros.length-nc,ins=A.membros.filter(m=>m.email&&A.inscritos.some(s=>s.email===m.email&&s.estado==='confirmado')).length;
+  const falta=A.membros.filter(m=>m.email&&!A.inscritos.some(s=>s.email===m.email&&s.estado==='confirmado')).length;
+  return '<section class="panel"><div class="row" style="justify-content:space-between;margin-bottom:10px"><h2 style="margin:0">Base de membros</h2><span class="small muted">'+n+' membros · '+nc+' convidados · '+ins+' recebem notificações</span></div>'+
+  '<p class="small muted" style="margin-top:0">Quem se inscrever nas notificações com um email ou nº da Ordem desta base fica logo identificado como membro. Os <b>convidados</b> não têm nº da Ordem e só veem os eventos públicos. Adicionar pessoas não envia emails; ative <b>Notificações</b> para a pessoa começar a receber os convites (recebe um email de boas-vindas).</p>'+
+  (falta?(ui.pending==='notif-all'?'<div class="note small row" style="margin-bottom:10px"><span>Vai ativar as notificações de <b>'+falta+'</b> pessoa(s) e enviar-lhes um email de boas-vindas.</span><button class="btn sm primary" data-act="notif-all">Confirmar</button><button class="btn sm" data-act="pending-clear">Cancelar</button></div>':''):'')+
+  '<div class="mtools"><label>Pesquisar<input type="search" id="mem-q" data-input="mem-q" value="'+esc(ui.q||'')+'" placeholder="Nome, nº, email, localidade…"></label><button class="btn primary" data-act="new-mem">Novo membro</button><button class="btn" data-act="import-mem">Importar Excel/CSV</button><button class="btn" data-act="tpl-mem">Descarregar modelo</button>'+(falta?'<button class="btn" data-act="ask-notif-all">Ativar notificações para todos ('+falta+')</button>':'')+'<input type="file" id="mem-file" accept=".csv,.xlsx,.xls,.ods,text/csv" hidden data-change="mem-file"></div>'+
   '<div class="tablewrap"><table><thead><tr><th>Nº</th><th>Nome</th><th>Email</th><th>Telemóvel</th><th>Localidade</th><th>Admissão</th><th>NIF</th><th>Notificações</th><th>Admin</th><th>Ações</th></tr></thead><tbody id="mem-body">'+memberRows()+'</tbody></table></div></section>';
 }
 function memberForm(m){const x=m||{};
-  return '<h2>'+(m?'Editar membro':'Novo membro')+'</h2><form data-form="membro" data-v="'+esc(m?m.n_ordem:'')+'" class="stack">'+
-  '<div class="f2"><label>Nº da Ordem<input type="text" id="m-n_ordem" required value="'+esc(x.n_ordem||'')+'"></label><label>Grau / cargo (opcional)<input type="text" id="m-grau" value="'+esc(x.grau||'')+'"></label></div>'+
+  const cv=m?ehConv(x):false;
+  return '<h2>'+(m?(cv?'Editar convidado':'Editar membro'):'Novo membro ou convidado')+'</h2><form data-form="membro" data-v="'+esc(m?mkey(m):'')+'" class="stack">'+
+  '<label>Tipo<select id="m-tipo"><option value=""'+(cv?'':' selected')+'>Membro da Ordem (com nº da Ordem)</option><option value="CONVIDADO"'+(cv?' selected':'')+'>Convidado (sem nº da Ordem; só vê eventos públicos)</option></select></label>'+
+  '<div class="f2"><label>Nº da Ordem (só membros)<input type="text" id="m-n_ordem" value="'+esc(x.n_ordem||'')+'"></label><label>Grau / cargo (opcional)<input type="text" id="m-grau" value="'+esc(x.grau||'')+'"></label></div>'+
   '<label>Nome completo<input type="text" id="m-nome" required value="'+esc(x.nome||'')+'"></label>'+
   '<div class="f2"><label>Email<input type="email" id="m-email" value="'+esc(x.email||'')+'"></label><label>Telemóvel<input type="tel" id="m-telemovel" value="'+esc(x.telemovel||'')+'"></label></div>'+
   '<div class="f2"><label>Localidade<input type="text" id="m-localidade" value="'+esc(x.localidade||'')+'"></label><label>Data de admissão<input type="date" id="m-data_admissao" value="'+esc(/^\d{4}-\d\d-\d\d$/.test(x.data_admissao||'')?x.data_admissao:'')+'"></label></div>'+
   '<label>NIF (opcional)<input type="text" id="m-nif" inputmode="numeric" value="'+esc(x.nif||'')+'"></label>'+
   '<label>Notas (opcional)<textarea id="m-notas">'+esc(x.notas||'')+'</textarea></label>'+
   '<label class="inline"><input type="checkbox" id="m-direcao"'+(x.direcao==='SIM'?' checked':'')+'> Faz parte da Direção / Gestão (vê os eventos reservados à Direção)</label>'+
-  '<p class="small muted" style="margin:0">O email é o que permite reconhecer o membro quando se inscreve. Sem email, é reconhecido só pelo nº da Ordem.</p>'+
+  '<p class="small muted" style="margin:0">O email é o que permite reconhecer a pessoa e enviar-lhe notificações. Nos convidados o email é obrigatório. Um membro sem email é reconhecido só pelo nº da Ordem.</p>'+
   '<button class="btn primary">'+(m?'Guardar alterações':'Adicionar membro')+'</button></form>';
 }
 /* importação */
-const MAPA=[['n_ordem',/^(n[ºo°.]*\s*(da\s*)?ordem|n[ºo°.]*|numero|número|num|nr|n_ordem|nº\s*membro|numero\s*de\s*membro|número\s*de\s*membro|id)$/],['nome',/^(nome|nome\s*completo|name)$/],['email',/^(e-?mail|correio\s*electr[oó]nico|correio\s*eletr[oó]nico)$/],['telemovel',/^(telem[oó]vel|telefone|contacto|contato|tel|phone|m[oó]vel)$/],['localidade',/^(localidade|cidade|morada|concelho)$/],['grau',/^(grau|cargo|grau\s*\/\s*cargo|posto|dignidade)$/],['data_admissao',/^(data\s*(de\s*)?admiss[aã]o|admiss[aã]o|data\s*entrada|entrada|investidura|data\s*investidura)$/],['nif',/^(nif|contribuinte|n[ºo°.]*\s*contribuinte)$/],['notas',/^(notas?|observa[cç][oõ]es|obs)$/],['direcao',/^(dire[cç][aã]o|gest[aã]o|dire[cç][aã]o\s*\/\s*gest[aã]o|direcao)$/]];
+const MAPA=[['n_ordem',/^(n[ºo°.]*\s*(da\s*)?ordem|n[ºo°.]*|numero|número|num|nr|n_ordem|nº\s*membro|numero\s*de\s*membro|número\s*de\s*membro|id)$/],['nome',/^(nome|nome\s*completo|name)$/],['email',/^(e-?mail|correio\s*electr[oó]nico|correio\s*eletr[oó]nico)$/],['telemovel',/^(telem[oó]vel|telefone|contacto|contato|tel|phone|m[oó]vel)$/],['localidade',/^(localidade|cidade|morada|concelho)$/],['grau',/^(grau|cargo|grau\s*\/\s*cargo|posto|dignidade)$/],['data_admissao',/^(data\s*(de\s*)?admiss[aã]o|admiss[aã]o|data\s*entrada|entrada|investidura|data\s*investidura)$/],['nif',/^(nif|contribuinte|n[ºo°.]*\s*contribuinte)$/],['notas',/^(notas?|observa[cç][oõ]es|obs)$/],['direcao',/^(dire[cç][aã]o|gest[aã]o|dire[cç][aã]o\s*\/\s*gest[aã]o|direcao)$/],['tipo',/^(tipo|categoria|membro\s*\/\s*convidado|condi[cç][aã]o)$/]];
 const normH=h=>String(h||'').trim().toLowerCase().replace(/\s+/g,' ').replace(/[:.]$/,'');
 function mapear(cab){return cab.map(h=>{const n=normH(h);const m=MAPA.find(x=>x[1].test(n));return m?m[0]:null})}
 function parseCSV(t){t=t.replace(/^\ufeff/,'');const first=t.split(/\r?\n/)[0]||'';const d=(first.split(';').length>first.split(',').length)?';':(first.split('\t').length>first.split(',').length?'\t':',');
@@ -440,8 +445,8 @@ async function lerFicheiro(file){
   else{let t=await file.text();if(t.includes('\ufffd')){t=new TextDecoder('windows-1252').decode(await file.arrayBuffer())}rows=parseCSV(t).map(r=>r.map(v=>v.trim()))}
   rows=rows.filter(r=>r.some(v=>v!==''));
   // procura a linha de cabeçalho nas primeiras 10 linhas
-  let hi=-1,map=null;for(let i=0;i<Math.min(10,rows.length);i++){const m=mapear(rows[i]);if(m.includes('nome')&&m.includes('n_ordem')){hi=i;map=m;break}}
-  if(hi<0)throw new Error('Não encontrámos as colunas «Nº da Ordem» e «Nome» no ficheiro. Use o modelo («Descarregar modelo»).');
+  let hi=-1,map=null;for(let i=0;i<Math.min(10,rows.length);i++){const m=mapear(rows[i]);if(m.includes('nome')&&(m.includes('n_ordem')||m.includes('email'))){hi=i;map=m;break}}
+  if(hi<0)throw new Error('Não encontrámos as colunas «Nome» e «Nº da Ordem» (ou «Email») no ficheiro. Use o modelo («Descarregar modelo»).');
   const linhas=rows.slice(hi+1).map((r,i)=>{const d={};map.forEach((k,j)=>{if(k&&r[j]!==undefined&&d[k]===undefined)d[k]=r[j]});return {linha:hi+i+2,dados:d}});
   return {linhas,colunas:map.filter(Boolean).map(k=>(MCAMPOS.find(c=>c[0]===k)||[k,k])[1]),ignoradas:rows[hi].filter((h,j)=>!map[j]&&String(h).trim())};
 }
@@ -499,7 +504,7 @@ function modal(){
     '<p class="small muted" style="margin:0">'+L('Inscrições até ','Registration until ')+esc(fmtLong(e.prazo))+(e.lotacao?L(' · lotação ',' · capacity ')+esc(e.lotacao)+L(' pessoas',' people'):'')+'</p>'+a;
   }
   if(M.type==='link'){const l=evLink(e.id);return '<h2>'+(M.novo?'Evento criado':'Link do evento')+'</h2>'+(M.msg?'<p style="margin:0">'+esc(M.msg)+'</p>':'')+'<div><b>'+esc(e.titulo)+'</b><div class="small muted">'+esc(fmtLong(e.data)+' às '+e.hora)+'</div></div><label>Link para partilhar<input type="text" readonly id="ev-link" class="linkbox" value="'+esc(l)+'"></label><div class="row"><button class="btn primary" data-act="copy-link" data-id="'+e.id+'">Copiar link</button><button class="btn" data-act="modal-close">Fechar</button></div>'+'<div class="note small">Quem abrir o link vai diretamente para o formulário de inscrição deste evento (em português ou inglês). Quem ainda não recebe os emails da Comenda confirma a inscrição por email e passa a receber as notificações.'+(e.visibilidade==='direcao'?' <b>Evento da Direção / Gestão:</b> só é aceite quem estiver marcado como Direção na base de membros (ou for admin). Não aparece no calendário público.':e.visibilidade==='membros'?' <b>Evento de membros:</b> só é aceite quem estiver na base de membros (pelo email ou nº da Ordem).':'')+'</div>'}
-  if(M.type==='membro') return memberForm(M.v?A.membros.find(m=>m.n_ordem===M.v):null);
+  if(M.type==='membro') return memberForm(M.v?A.membros.find(m=>mkey(m)===M.v):null);
   if(M.type==='import'){const I=M.data;return '<h2>Importar membros</h2><p style="margin:0"><b>'+esc(M.file)+'</b>: '+I.linhas.length+' linha(s) com dados.</p><div class="note small"><b>Colunas reconhecidas:</b> '+esc(I.colunas.join(', '))+(I.ignoradas.length?'<br><b>Ignoradas:</b> '+esc(I.ignoradas.join(', ')):'')+'</div><p class="small muted" style="margin:0">Os membros que já existem (mesmo nº da Ordem ou mesmo email) são atualizados com os dados do ficheiro. Não é enviado nenhum email.</p><div class="row"><button class="btn primary" data-act="do-import">Importar '+I.linhas.length+' membro(s)</button><button class="btn" data-act="modal-close">Cancelar</button></div>'}
   if(M.type==='import-res'){const R=M.res;return '<h2>Importação concluída</h2><div class="tiles"><div class="tile"><b>'+R.novos+'</b><span>Novos</span></div><div class="tile"><b>'+R.atualizados+'</b><span>Atualizados</span></div><div class="tile'+(R.erros.length?' hi':'')+'"><b>'+R.erros.length+'</b><span>Com erro</span></div></div>'+(R.inscritosMarcados?'<p class="small" style="margin:0">'+R.inscritosMarcados+' pessoa(s) já inscrita(s) nas notificações passaram a membro.</p>':'')+(R.erros.length?'<div><b class="small">Linhas não importadas</b><ul class="errlist">'+R.erros.map(x=>'<li>Linha '+x.linha+': '+esc(x.motivo)+'</li>').join('')+'</ul></div>':'')+'<button class="btn primary" data-act="modal-close">Fechar</button>'}
   if(M.type==='cal'){const f=D.me.ical,w=f.replace(/^https?:/,'webcal:');
@@ -610,8 +615,10 @@ document.addEventListener('click',async ev_=>{
     case 'edit-mem': ui.modal={type:'membro',v};break;
     case 'ask-rm-mem': ui.pending='rmm-'+v;break;
     case 'rm-mem': r=await act('apiAdminRemoverMembro',B.admin,v);if(r){toast(r);ui.pending=null;await loadAdmin()}break;
+    case 'ask-notif-all': ui.pending='notif-all';break;
+    case 'notif-all': r=await act('apiAdminNotificar',B.admin,'todos',true);if(r){toast(r);ui.pending=null;await loadAdmin()}break;
     case 'import-mem': {const i=document.getElementById('mem-file');i.value='';i.click();return}
-    case 'tpl-mem': baixar('modelo_membros.csv',MCAMPOS.map(c=>c[1]).join(';')+'\n1234;João Exemplo Silva;joao@exemplo.pt;912345678;Braga;Cavaleiro;15/03/2020;123456789;;Não\n','text/csv;charset=utf-8');return;
+    case 'tpl-mem': baixar('modelo_membros.csv',MCAMPOS.map(c=>c[1]).join(';')+'\n1234;João Exemplo Silva;joao@exemplo.pt;912345678;Braga;Cavaleiro;15/03/2020;123456789;;Não;Membro\n;Maria Convidada Costa;maria@exemplo.pt;913000000;Porto;;;;;Não;Convidado\n','text/csv;charset=utf-8');return;
     case 'do-import': {const I=ui.modal.data;r=await act('apiAdminImportarMembros',B.admin,I.linhas);if(r){await loadAdmin();ui.modal={type:'import-res',res:r};render()}return}
     case 'forgot': ev_.preventDefault();ui.forgot=v==='1';ui.msg=null;break;
     case 'logout': await act('apiAdminSair',B.admin);sSet('');B.admin='';A=null;ui.msg='Sessão terminada.';break;
@@ -633,6 +640,7 @@ document.addEventListener('change',async e_=>{
   const t=e_.target,c=t.dataset.change;if(!c)return;
   if(c==='regev'){ui.regEv=t.value;render()}
   if(c==='mem-file'){const file=t.files&&t.files[0];if(!file)return;try{const I=await lerFicheiro(file);if(!I.linhas.length)throw new Error('O ficheiro não tem linhas com dados por baixo do cabeçalho.');ui.modal={type:'import',data:I,file:file.name};renderLayer()}catch(err){toast(errMsg(err))}}
+  if(c==='notif'){const on=t.checked;t.disabled=true;const r=await act('apiAdminNotificar',B.admin,[t.dataset.k],on);if(r){toast(r);await loadAdmin();render()}else{t.checked=!on;t.disabled=false}return}
   if(c==='adm'){const on=t.checked;const r=await act('apiAdminTornarAdmin',B.admin,t.dataset.email,on);if(r){toast(r);await loadAdmin();const b=document.getElementById('mem-body');if(b)b.innerHTML=memberRows()}else t.checked=!on;return}
   if(c==='member'){const r=await act('apiAdminMembro',B.admin,t.dataset.email,t.checked);if(r){toast(r);const s=A.inscritos.find(x=>x.email===t.dataset.email);if(s)s.membro=t.checked}else t.checked=!t.checked}
 });
