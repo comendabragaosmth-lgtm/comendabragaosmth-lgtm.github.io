@@ -118,6 +118,8 @@ tbody td:first-child{white-space:nowrap}
 td.notecell{min-width:180px;max-width:280px;color:var(--muted)}
 td.num{font-variant-numeric:tabular-nums;text-align:right}
 .tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.pill.ext{background:transparent;border-color:var(--gold);color:var(--gold)}
+form .ext-only{display:none}form.ext .ext-only{display:flex}form.ext .reg-only{display:none!important}
 .tile.hi{border-color:var(--red);background:var(--red-soft)}
 .tile b small{font-size:.9rem;color:var(--muted)}
 tr.grp td{background:var(--surface-2);font-weight:700;font-family:var(--f-display);letter-spacing:.03em}
@@ -252,7 +254,7 @@ async function boot(){
   if(B.ev&&D&&ui.mode!=='admin'){let e=D.eventos.find(x=>x.id===B.ev);
     let viaLink=false;
     if(!e){try{const le=await call('apiEventoLink',B.ev);if(le){ui.linkEv=le;e=le;viaLink=true}}catch(err){}}
-    if(e){const open=e.estado==='ativo'&&TODAY()<=e.prazo;ui.modal=B.inscOk||!open?{type:'event',id:e.id}:(D.me&&!viaLink)?{type:'reg',id:e.id}:{type:'regpub',id:e.id};renderLayer()}
+    if(e){const open=e.estado==='ativo'&&!e.externo&&TODAY()<=e.prazo;ui.modal=B.inscOk||!open?{type:'event',id:e.id}:(D.me&&!viaLink)?{type:'reg',id:e.id}:{type:'regpub',id:e.id};renderLayer()}
     else if(!B.flash)toast(L('Este evento não está disponível.','This event is not available.'))}
 }
 
@@ -323,6 +325,7 @@ function agenda(){
 }
 function badges(e){
   let b=e.visibilidade==='direcao'?'<span class="pill dir">'+L('Direção / Gestão','Board')+'</span>':e.visibilidade==='membros'?'<span class="pill mem">'+L('Membros','Members')+'</span>':'<span class="pill pub">'+L('Público','Public')+'</span>';
+  if(e.externo)b+=' <span class="pill ext">'+L('Outra comenda: ','Other commandery: ')+esc(e.externo)+'</span>';
   if(e.estado==='cancelado')b+=' <span class="pill cx">'+L('Cancelado','Cancelled')+'</span>';
   if(e.estado==='rascunho')b+=' <span class="pill warn">Rascunho · não publicado</span>';
   if(e.estado==='oculto')b+=' <span class="pill warn">Oculto</span>';
@@ -334,15 +337,15 @@ function badges(e){
 function evCard(e,admin){
   const d=parse(e.data);
   let actions='<button class="btn sm" data-act="open-ev" data-id="'+e.id+'">'+L('Ver','View')+'</button>';
-  if(!admin&&D&&e.estado!=='cancelado'&&TODAY()<=e.prazo) actions+='<button class="btn sm primary" data-act="'+(D.me?'open-reg':'open-regpub')+'" data-id="'+e.id+'">'+(myReg(e.id)?L('Editar inscrição','Edit registration'):L('Inscrever-me','Register'))+'</button>';
+  if(!admin&&D&&e.estado!=='cancelado'&&!e.externo&&TODAY()<=e.prazo) actions+='<button class="btn sm primary" data-act="'+(D.me?'open-reg':'open-regpub')+'" data-id="'+e.id+'">'+(myReg(e.id)?L('Editar inscrição','Edit registration'):L('Inscrever-me','Register'))+'</button>';
   if(admin){
     const np=countPeople(e.id);
     const del=ui.pending==='del-'+e.id?'<button class="btn sm danger" data-act="del-ev" data-id="'+e.id+'">Confirmar eliminação'+(np&&e.data>=TODAY()&&e.estado!=='rascunho'&&e.estado!=='cancelado'?' (avisa '+np+' pessoa(s))':'')+'</button><button class="btn sm" data-act="pending-clear">Não</button>':'<button class="btn sm danger" data-act="ask-del" data-id="'+e.id+'">Eliminar</button>';
     if(e.estado==='rascunho') actions='<button class="btn sm" data-act="edit-ev" data-id="'+e.id+'">Editar</button><button class="btn sm primary" data-act="pub-ev" data-id="'+e.id+'">Publicar e enviar convites</button>'+del;
     else if(e.estado==='oculto') actions='<button class="btn sm" data-act="edit-ev" data-id="'+e.id+'">Editar</button><button class="btn sm primary" data-act="pub-ev" data-id="'+e.id+'">Mostrar</button><button class="btn sm" data-act="regs" data-id="'+e.id+'">Inscrições ('+np+' pessoas)</button>'+del;
-    else actions='<button class="btn sm" data-act="edit-ev" data-id="'+e.id+'">Editar</button><button class="btn sm" data-act="copy-link" data-id="'+e.id+'">Copiar link</button><button class="btn sm" data-act="regs" data-id="'+e.id+'">Inscrições ('+np+' pessoas)</button>';
+    else actions='<button class="btn sm" data-act="edit-ev" data-id="'+e.id+'">Editar</button><button class="btn sm" data-act="copy-link" data-id="'+e.id+'">Copiar link</button>'+(e.externo?'':'<button class="btn sm" data-act="regs" data-id="'+e.id+'">Inscrições ('+np+' pessoas)</button>');
     if(e.estado==='ativo'){
-      actions+='<button class="btn sm" data-act="notice" data-id="'+e.id+'">Enviar novidade</button><button class="btn sm" data-act="remind" data-id="'+e.id+'" data-v="7">Lembrete agora</button>';
+      actions+='<button class="btn sm" data-act="notice" data-id="'+e.id+'">Enviar novidade</button>'+(e.externo?'':'<button class="btn sm" data-act="remind" data-id="'+e.id+'" data-v="7">Lembrete agora</button>');
       actions+=ui.pending==='cx-'+e.id?'<button class="btn sm danger" data-act="cancel-ev" data-id="'+e.id+'">Confirmar cancelamento</button><button class="btn sm" data-act="pending-clear">Não</button>':'<button class="btn sm danger" data-act="ask-cancel" data-id="'+e.id+'">Cancelar evento</button>';
       actions+='<button class="btn sm" data-act="hide-ev" data-id="'+e.id+'">Ocultar</button>'+del;
     }
@@ -505,14 +508,17 @@ function modal(){
   if(M.type==='event'){
     let a='';
     const open=TODAY()<=e.prazo;
+    const xl=e.externo_link||'',xu=/^https?:\/\/\S+$/.test(xl);
+    const extNote=e.externo?'<div class="note">'+L('Evento organizado pela ','Event organised by ')+'<b>'+esc(e.externo)+'</b>. '+L('É apenas informativo: a inscrição não é feita através desta página.','For information only: registration is not handled on this page.')+(xl?'<br>'+(xu?'<a class="lnk" href="'+esc(xl)+'" target="_blank" rel="noopener">'+L('Mais informações','More information')+' ↗</a>':L('Mais informações: ','More information: ')+esc(xl)):'')+'</div>':'';
     if(e.estado==='cancelado') a='<div class="note">'+L('Este evento foi cancelado.','This event has been cancelled.')+'</div>';
+    else if(e.externo) a=extNote+(ui.mode==='admin'?'<div class="row"><button class="btn" data-act="edit-ev" data-id="'+e.id+'">Editar</button></div>':'');
     else if(ui.mode==='admin') a='<div class="row"><button class="btn" data-act="edit-ev" data-id="'+e.id+'">Editar</button><button class="btn" data-act="regs" data-id="'+e.id+'">Ver inscrições</button></div>';
     else if(D.me&&myReg(e.id)) a=(open?'<button class="btn primary" data-act="open-reg" data-id="'+e.id+'">'+L('Editar a minha inscrição','Edit my registration')+'</button> ':'')+'<button class="btn" data-act="ics-ev" data-id="'+e.id+'">📅 '+L('Adicionar ao calendário','Add to calendar')+'</button>';
     else if(!open) a='<div class="note">'+L('As inscrições fecharam a ','Registration closed on ')+fmtLong(e.prazo)+'.</div>';
     else a='<button class="btn primary" data-act="'+(D.me?'open-reg':'open-regpub')+'" data-id="'+e.id+'">'+L('Inscrever-me','Register')+'</button>';
     return '<div class="row">'+badges(e)+'</div><h2>'+esc(tE(e))+'</h2><div><div>'+esc(fmtLong(e.data))+atL()+esc(e.hora)+(e.hora_fim?' – '+esc(e.hora_fim):'')+'</div><div class="muted">'+esc(e.local)+'</div></div>'+(dE(e)?'<p style="margin:0;white-space:pre-line">'+esc(dE(e))+'</p>':'')+
     (e.atividades.length?'<div><b class="small">'+L('Outras atividades','Other activities')+'</b><ul style="margin:4px 0 0;padding-left:20px">'+e.atividades.map(x=>'<li>'+esc(aE(e,x))+'</li>').join('')+'</ul></div>':'')+
-    '<p class="small muted" style="margin:0">'+L('Inscrições até ','Registration until ')+esc(fmtLong(e.prazo))+(e.lotacao?L(' · lotação ',' · capacity ')+esc(e.lotacao)+L(' pessoas',' people'):'')+'</p>'+a;
+    (e.externo?'':'<p class="small muted" style="margin:0">'+L('Inscrições até ','Registration until ')+esc(fmtLong(e.prazo))+(e.lotacao?L(' · lotação ',' · capacity ')+esc(e.lotacao)+L(' pessoas',' people'):'')+'</p>')+a;
   }
   if(M.type==='link'){const l=evLink(e.id);return '<h2>'+(M.novo?'Evento criado':'Link do evento')+'</h2>'+(M.msg?'<p style="margin:0">'+esc(M.msg)+'</p>':'')+'<div><b>'+esc(e.titulo)+'</b><div class="small muted">'+esc(fmtLong(e.data)+' às '+e.hora)+'</div></div><label>Link para partilhar<input type="text" readonly id="ev-link" class="linkbox" value="'+esc(l)+'"></label><div class="row"><button class="btn primary" data-act="copy-link" data-id="'+e.id+'">Copiar link</button><button class="btn" data-act="modal-close">Fechar</button></div>'+'<div class="note small">Quem abrir o link vai diretamente para o formulário de inscrição deste evento (em português ou inglês). Quem ainda não recebe os emails da Comenda confirma a inscrição por email e passa a receber as notificações.'+(e.visibilidade==='direcao'?' <b>Evento da Direção / Gestão:</b> só é aceite quem estiver marcado como Direção na base de membros (ou for admin). Não aparece no calendário público.':e.visibilidade==='membros'?' <b>Evento de membros:</b> só é aceite quem estiver na base de membros (pelo email ou nº da Ordem).':'')+'</div>'}
   if(M.type==='membro') return memberForm(M.v?A.membros.find(m=>mkey(m)===M.v):null);
@@ -579,19 +585,22 @@ function readGuests(){
 function editor(e){
   const t=A.hoje;
   const x=e||{titulo:'',data:plusDays(t,14),hora:'19:00',local:'',descricao:'',visibilidade:'membros',prazo:plusDays(t,10),lotacao:'',campos:{convidados:true,agape:true,visita:false,restricoes:true,telemovel:true,nif:false,observacoes:true},atividades:[]};
-  return '<h2>'+(e?'Editar evento':'Novo evento')+'</h2><form data-form="editor" data-id="'+(e?e.id:'')+'" class="stack">'+
+  const ext=!!x.externo;
+  return '<h2>'+(e?'Editar evento':'Novo evento')+'</h2><form data-form="editor" data-id="'+(e?e.id:'')+'" class="stack'+(ext?' ext':'')+'">'+
+  '<label class="inline"><input type="checkbox" id="ed-ext" data-change="ed-ext"'+(ext?' checked':'')+'> Evento de outra comenda (só informativo, sem inscrição)</label>'+
+  '<div class="stack ext-only"><div class="f2"><label>Comenda organizadora<input type="text" id="ed-ext-nome" value="'+esc(x.externo||'')+'" placeholder="Ex.: Comenda do Porto"></label><label>Link ou contacto para mais informações (opcional)<input type="text" id="ed-ext-link" value="'+esc(x.externo_link||'')+'" placeholder="https://… ou email / telefone"></label></div><span class="small muted">Ao publicar, é enviado um único email informativo, sem botão de inscrição, a quem pode ver o evento. Não há lembretes, avisos de alteração ou cancelamento, nem agradecimento.</span></div>'+
   '<label>Título<input type="text" id="ed-title" required value="'+esc(x.titulo)+'" placeholder="Ex.: Jantar de Natal"></label>'+
   '<div class="f2"><label>Data<input type="date" id="ed-date" required value="'+x.data+'"></label><label>Hora de início<input type="time" id="ed-time" required value="'+x.hora+'"></label></div>'+
   '<label>Hora de fim (opcional, para o calendário)<input type="time" id="ed-end" value="'+esc(x.hora_fim||'')+'"></label>'+
   '<label>Local<input type="text" id="ed-loc" required value="'+esc(x.local)+'"></label>'+
   '<label>Descrição<textarea id="ed-desc">'+esc(x.descricao)+'</textarea></label>'+
-  '<div class="f2"><label>Quem pode ver e inscrever-se<select id="ed-vis"><option value="membros"'+(x.visibilidade==='membros'?' selected':'')+'>Só membros</option><option value="publico"'+(x.visibilidade==='publico'?' selected':'')+'>Público (todos os inscritos)</option><option value="direcao"'+(x.visibilidade==='direcao'?' selected':'')+'>Só Direção / Gestão (não visível ao público)</option></select></label><label>Inscrições até<input type="date" id="ed-dl" required value="'+x.prazo+'"></label></div>'+
-  '<label>Lotação máxima (opcional)<input type="number" id="ed-cap" min="1" value="'+esc(x.lotacao)+'"></label>'+
-  '<fieldset><legend>Perguntas do formulário deste evento</legend><span class="small muted">O nome e o email são sempre pedidos.</span>'+Object.keys(CAMPOS).map(k=>'<label class="inline"><input type="checkbox" name="ed-f" value="'+k+'"'+(x.campos[k]?' checked':'')+'> '+CAMPOS[k]+'</label>').join('')+'</fieldset>'+
+  '<div class="f2"><label>Quem pode ver e inscrever-se<select id="ed-vis"><option value="membros"'+(x.visibilidade==='membros'?' selected':'')+'>Só membros</option><option value="publico"'+(x.visibilidade==='publico'?' selected':'')+'>Público (todos os inscritos)</option><option value="direcao"'+(x.visibilidade==='direcao'?' selected':'')+'>Só Direção / Gestão (não visível ao público)</option></select></label><label class="reg-only">Inscrições até<input type="date" id="ed-dl" value="'+x.prazo+'"></label></div>'+
+  '<label class="reg-only">Lotação máxima (opcional)<input type="number" id="ed-cap" min="1" value="'+esc(x.lotacao)+'"></label>'+
+  '<fieldset class="reg-only"><legend>Perguntas do formulário deste evento</legend><span class="small muted">O nome e o email são sempre pedidos.</span>'+Object.keys(CAMPOS).map(k=>'<label class="inline"><input type="checkbox" name="ed-f" value="'+k+'"'+(x.campos[k]?' checked':'')+'> '+CAMPOS[k]+'</label>').join('')+'</fieldset>'+
   '<details'+(x.titulo_en||x.descricao_en?' open':'')+'><summary style="cursor:pointer;font-weight:600">English version (opcional)</summary><div class="stack" style="margin-top:10px"><label>Título (EN)<input type="text" id="ed-title-en" value="'+esc(x.titulo_en||'')+'"></label><label>Descrição (EN)<textarea id="ed-desc-en">'+esc(x.descricao_en||'')+'</textarea></label><label>Outras atividades (EN, uma por linha, pela mesma ordem)<textarea id="ed-acts-en">'+esc((x.atividades_en||[]).join('\n'))+'</textarea></label><span class="small muted">Se ficar vazio, quem escolher inglês vê o texto em português.</span></div></details>'+
-  '<label>Link do álbum de fotos no Google Fotos (opcional)<input type="url" id="ed-album" placeholder="https://photos.app.goo.gl/…" value="'+esc(x.album||'')+'"><span class="small muted" style="font-weight:400">No dia seguinte ao evento, os participantes recebem um agradecimento com este link para partilharem as fotos.</span></label>'+
-  '<label>Outras atividades (uma por linha, opcional)<textarea id="ed-acts" placeholder="Ex.: Visita guiada (10:00)">'+esc(x.atividades.join('\n'))+'</textarea></label>'+
-  (e?'<label class="inline"><input type="checkbox" id="ed-notify" checked> Avisar os convidados da alteração por email</label>':'<div class="note small">Ao guardar, é enviado um convite com o formulário a todos os inscritos confirmados que podem ver o evento.</div>')+
+  '<label class="reg-only">Link do álbum de fotos no Google Fotos (opcional)<input type="url" id="ed-album" placeholder="https://photos.app.goo.gl/…" value="'+esc(x.album||'')+'"><span class="small muted" style="font-weight:400">No dia seguinte ao evento, os participantes recebem um agradecimento com este link para partilharem as fotos.</span></label>'+
+  '<label class="reg-only">Outras atividades (uma por linha, opcional)<textarea id="ed-acts" placeholder="Ex.: Visita guiada (10:00)">'+esc(x.atividades.join('\n'))+'</textarea></label>'+
+  (e?'<label class="inline reg-only"><input type="checkbox" id="ed-notify" checked> Avisar os convidados da alteração por email</label>':'<div class="note small reg-only">Ao guardar, é enviado um convite com o formulário a todos os inscritos confirmados que podem ver o evento.</div>')+
   (e?'<button class="btn primary">'+(e.estado==='rascunho'?'Guardar rascunho':'Guardar alterações')+'</button>':'<div class="row"><button class="btn primary" data-v="pub">Criar e enviar convites</button><button class="btn" data-v="draft">Guardar como rascunho</button></div>')+'</form>';
 }
 
@@ -662,6 +671,7 @@ document.addEventListener('change',async e_=>{
   if(c==='regev'){ui.regEv=t.value;render()}
   if(c==='mem-file'){const file=t.files&&t.files[0];if(!file)return;try{const I=await lerFicheiro(file);if(!I.linhas.length)throw new Error('O ficheiro não tem linhas com dados por baixo do cabeçalho.');const P=await act('apiAdminPreverImportacao',B.admin,I.linhas);if(!P)return;ui.modal={type:'import',data:I,file:file.name,prev:P,sel:P.plano.filter(x=>x.acao==='novo'||x.acao==='atualizar'||x.acao==='repetida').map(x=>x.linha)};renderLayer()}catch(err){toast(errMsg(err))}}
   if(c==='imp-sel'){const M=ui.modal;if(!M||M.type!=='import')return;const n=+t.dataset.v;M.sel=t.checked?[...new Set([...M.sel,n])]:M.sel.filter(x=>x!==n);const b=document.getElementById('imp-go');if(b){b.textContent='Confirmar importação ('+M.sel.length+')';b.disabled=!M.sel.length}return}
+  if(c==='ed-ext'){const f=t.closest('form');if(f)f.classList.toggle('ext',t.checked);return}
   if(c==='notif'){const on=t.checked;t.disabled=true;const r=await act('apiAdminNotificar',B.admin,[t.dataset.k],on);if(r){toast(r);await loadAdmin();render()}else{t.checked=!on;t.disabled=false}return}
   if(c==='adm'){const on=t.checked;const r=await act('apiAdminTornarAdmin',B.admin,t.dataset.email,on);if(r){toast(r);await loadAdmin();const b=document.getElementById('mem-body');if(b)b.innerHTML=memberRows()}else t.checked=!on;return}
   if(c==='member'){const r=await act('apiAdminMembro',B.admin,t.dataset.email,t.checked);if(r){toast(r);const s=A.inscritos.find(x=>x.email===t.dataset.email);if(s)s.membro=t.checked}else t.checked=!t.checked}
@@ -681,6 +691,9 @@ document.addEventListener('submit',async e_=>{
     data.lang=LANG;r=await act('apiInscrever',B.token,e.id,data);if(r){toast(r);ui.modal=null;await loadPublic();render()}return}
   if(k==='editor'){const campos={};f.querySelectorAll('[name=ed-f]').forEach(i=>campos[i.value]=i.checked);
     const d={id:f.dataset.id||'',titulo:val('ed-title'),data:val('ed-date'),hora:val('ed-time'),hora_fim:val('ed-end'),album:val('ed-album'),titulo_en:val('ed-title-en'),descricao_en:val('ed-desc-en'),atividades_en:val('ed-acts-en').split('\n').map(x=>x.trim()),local:val('ed-loc'),descricao:val('ed-desc'),visibilidade:val('ed-vis'),prazo:val('ed-dl'),lotacao:val('ed-cap'),campos,atividades:val('ed-acts').split('\n').map(x=>x.trim()).filter(Boolean)};
+    d.ext=document.getElementById('ed-ext').checked;
+    if(d.ext){d.externo=val('ed-ext-nome');d.externo_link=val('ed-ext-link');d.prazo=d.data;if(!d.externo){toast('Indique o nome da comenda que organiza o evento.');return}}
+    else if(!d.prazo){toast('Indique a data-limite das inscrições.');return}
     if(d.prazo>d.data){toast('O prazo de inscrição tem de ser antes ou no dia do evento.');return}
     if(d.hora_fim&&d.hora_fim<=d.hora){toast('A hora de fim tem de ser depois da hora de início.');return}
     const n=document.getElementById('ed-notify');
