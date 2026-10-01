@@ -330,6 +330,7 @@ function badges(e){
   if(e.estado==='rascunho')b+=' <span class="pill warn">Rascunho · não publicado</span>';
   if(e.estado==='oculto')b+=' <span class="pill warn">Oculto</span>';
   if(ui.mode==='admin'&&e.album)b+=' <span class="pill pub">📷 Álbum</span>';
+  if(ui.mode==='admin'&&e.pasta_url)b+=' <a class="pill pub" href="'+esc(e.pasta_url)+'" target="_blank" rel="noopener" title="Abrir a pasta de fotos no Google Drive">📁 Pasta de fotos ↗</a>';
   if(ui.mode==='admin'&&e.agradecimento)b+=' <span class="pill ok">Agradecimento enviado</span>';
   if(ui.mode!=='admin'&&myReg(e.id))b+=' <span class="pill ok">'+L('Inscrito','Registered')+'</span>';
   return b;
@@ -598,7 +599,7 @@ function editor(e){
   '<label class="reg-only">Lotação máxima (opcional)<input type="number" id="ed-cap" min="1" value="'+esc(x.lotacao)+'"></label>'+
   '<fieldset class="reg-only"><legend>Perguntas do formulário deste evento</legend><span class="small muted">O nome e o email são sempre pedidos.</span>'+Object.keys(CAMPOS).map(k=>'<label class="inline"><input type="checkbox" name="ed-f" value="'+k+'"'+(x.campos[k]?' checked':'')+'> '+CAMPOS[k]+'</label>').join('')+'</fieldset>'+
   '<details'+(x.titulo_en||x.descricao_en?' open':'')+'><summary style="cursor:pointer;font-weight:600">English version (opcional)</summary><div class="stack" style="margin-top:10px"><label>Título (EN)<input type="text" id="ed-title-en" value="'+esc(x.titulo_en||'')+'"></label><label>Descrição (EN)<textarea id="ed-desc-en">'+esc(x.descricao_en||'')+'</textarea></label><label>Outras atividades (EN, uma por linha, pela mesma ordem)<textarea id="ed-acts-en">'+esc((x.atividades_en||[]).join('\n'))+'</textarea></label><span class="small muted">Se ficar vazio, quem escolher inglês vê o texto em português.</span></div></details>'+
-  '<label class="reg-only">Link do álbum de fotos no Google Fotos (opcional)<input type="url" id="ed-album" placeholder="https://photos.app.goo.gl/…" value="'+esc(x.album||'')+'"><span class="small muted" style="font-weight:400">No dia seguinte ao evento, os participantes recebem um agradecimento com este link para partilharem as fotos.</span></label>'+
+  '<label class="reg-only">Link do álbum de fotos no Google Fotos (opcional)<input type="url" id="ed-album" placeholder="https://photos.app.goo.gl/…" value="'+esc(x.album||'')+'"><span class="small muted" style="font-weight:400">No dia seguinte ao evento, os participantes recebem um agradecimento com este link para partilharem as fotos. Se ficar vazio, a app cria sozinha uma pasta no Google Drive da Comenda e envia esse link.</span></label>'+
   '<label class="reg-only">Outras atividades (uma por linha, opcional)<textarea id="ed-acts" placeholder="Ex.: Visita guiada (10:00)">'+esc(x.atividades.join('\n'))+'</textarea></label>'+
   (e?'<label class="inline reg-only"><input type="checkbox" id="ed-notify" checked> Avisar os convidados da alteração por email</label>':'<div class="note small reg-only">Ao guardar, é enviado um convite com o formulário a todos os inscritos confirmados que podem ver o evento.</div>')+
   (e?'<button class="btn primary">'+(e.estado==='rascunho'?'Guardar rascunho':'Guardar alterações')+'</button>':'<div class="row"><button class="btn primary" data-v="pub">Criar e enviar convites</button><button class="btn" data-v="draft">Guardar como rascunho</button></div>')+'</form>';
