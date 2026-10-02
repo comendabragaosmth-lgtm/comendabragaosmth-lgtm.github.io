@@ -204,6 +204,7 @@ const eur=v=>{const n=parseFloat(String(v||'').replace(',','.'));return n>0?n.to
 const precoT=r=>{const a=eur(r.preco),b=eur(r.preco2);return a?a+L(' por pessoa',' per person')+(r.preco_ate&&b?L(' até ',' until ')+fmtLong(r.preco_ate)+L('; depois, ','; after that, ')+b:''):''};
 const progE=e=>String((EN()&&e.programa_en)||e.programa||'').split('\n').map(x=>x.trim()).filter(Boolean);
 const trajeE=e=>(EN()&&e.traje_en)||e.traje||'';
+const regEmails=id=>[...new Set(((A&&A.inscricoes)||[]).filter(r=>r.evento_id===id).map(r=>r.email))];
 const sorted=a=>[...a].sort((x,y)=>(x.data+x.hora).localeCompare(y.data+y.hora));
 
 const LEITURAS=['apiDados','apiAdminDados','apiEventoLink'];
@@ -627,7 +628,7 @@ function editor(e){
   '<details'+(x.titulo_en||x.descricao_en||x.programa_en||x.traje_en?' open':'')+'><summary style="cursor:pointer;font-weight:600">English version (opcional)</summary><div class="stack" style="margin-top:10px"><label>Título (EN)<input type="text" id="ed-title-en" value="'+esc(x.titulo_en||'')+'"></label><label>Descrição (EN)<textarea id="ed-desc-en">'+esc(x.descricao_en||'')+'</textarea></label><label>Outras atividades (EN, uma por linha, pela mesma ordem)<textarea id="ed-acts-en">'+esc((x.atividades_en||[]).join('\n'))+'</textarea></label><label>Ordem dos trabalhos (EN)<textarea id="ed-prog-en">'+esc(x.programa_en||'')+'</textarea></label><label>Traje (EN)<textarea id="ed-traje-en">'+esc(x.traje_en||'')+'</textarea></label><span class="small muted">Se ficar vazio, quem escolher inglês vê o texto em português.</span></div></details>'+
   '<label class="reg-only">Link do álbum de fotos no Google Fotos (opcional)<input type="url" id="ed-album" placeholder="https://photos.app.goo.gl/…" value="'+esc(x.album||'')+'"><span class="small muted" style="font-weight:400">No dia seguinte ao evento, os participantes recebem um agradecimento com este link para partilharem as fotos. Se ficar vazio, a app cria sozinha uma pasta no Google Drive da Comenda e envia esse link.</span></label>'+
   '<label class="reg-only">Outras atividades (uma por linha, opcional)<textarea id="ed-acts" placeholder="Ex.: Visita guiada (10:00)">'+esc(x.atividades.join('\n'))+'</textarea></label>'+
-  (e?'<label class="inline reg-only"><input type="checkbox" id="ed-notify" checked> Avisar os convidados da alteração por email</label>':'<div class="note small reg-only">Ao guardar, é enviado um convite com o formulário a todos os inscritos confirmados que podem ver o evento.</div>')+
+  (e?'<label class="inline reg-only"><input type="checkbox" id="ed-notify"> Avisar por email quem está inscrito neste evento ('+regEmails(e.id).length+' pessoa(s))</label><span class="small muted reg-only">Só os inscritos recebem o aviso. Se mudar a data, a hora, o local ou o título, os inscritos recebem também o convite de calendário atualizado.</span>':'<div class="note small reg-only">Ao guardar, é enviado um convite com o formulário a todos os inscritos confirmados que podem ver o evento.</div>')+
   (e?'<button class="btn primary">'+(e.estado==='rascunho'?'Guardar rascunho':'Guardar alterações')+'</button>':'<div class="row"><button class="btn primary" data-v="pub">Criar e enviar convites</button><button class="btn" data-v="draft">Guardar como rascunho</button></div>')+'</form>';
 }
 
@@ -729,6 +730,10 @@ document.addEventListener('submit',async e_=>{
     if(d.prazo>d.data){toast('O prazo de inscrição tem de ser antes ou no dia do evento.');return}
     if(d.hora_fim&&d.hora_fim<=d.hora){toast('A hora de fim tem de ser depois da hora de início.');return}
     const n=document.getElementById('ed-notify');
+    if(d.id){const o=ev(d.id);if(o&&o.estado==='ativo'&&!d.ext){
+      const cal=['titulo','data','hora','hora_fim','local','morada','descricao','titulo_en','descricao_en'].some(k=>String(o[k]||'')!==String(d[k]||''));
+      const ne=(n&&n.checked)||cal?regEmails(o.id).length:0;
+      if(ne&&!confirm('Ao gravar, a app vai enviar '+ne+' email(s) aos inscritos neste evento ('+((n&&n.checked)?'aviso de alteração':'convite de calendário atualizado')+').'+(A.fila&&ne>A.fila.quota?'\n\nHoje só pode enviar mais '+A.fila.quota+'; o resto segue amanhã.':'')+'\n\nContinuar?'))return}}
     d.rascunho=!!(e_.submitter&&e_.submitter.dataset.v==='draft');
     r=await act('apiAdminGuardarEvento',B.admin,d,!!(n&&n.checked));if(r){ui.month=d.data.slice(0,7);await loadAdmin();if(r.novo&&!r.rascunho){ui.modal={type:'link',id:r.id,msg:r.msg,novo:true}}else{ui.modal=null;toast(r.msg||r)}render()}return}
   if(k==='notice'){const to=(f.querySelector('[name=n-to]:checked')||{}).value;r=await act('apiAdminNovidade',B.admin,f.dataset.id,val('n-subj'),val('n-body'),to==='reg');if(r){toast(r);ui.modal=null;await loadAdmin();render()}return}
