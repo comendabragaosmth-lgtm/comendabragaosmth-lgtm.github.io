@@ -69,6 +69,7 @@ main{padding-block:24px 60px}
 .pill.ok{background:var(--ok-soft);color:var(--ok)}
 .pill.warn{background:var(--warn-soft);color:var(--warn)}
 .pill.cx{background:var(--red-soft);color:var(--red)}
+.pill.hi{background:var(--red);color:#fff;border-color:var(--red)}
 /* calendar */
 .calhead{display:flex;align-items:center;gap:8px;margin-bottom:10px}
 .calhead h2{margin:0 auto 0 0;text-transform:capitalize}
@@ -205,6 +206,7 @@ const precoT=r=>{const a=eur(r.preco),b=eur(r.preco2);return a?a+L(' por pessoa'
 const progE=e=>String((EN()&&e.programa_en)||e.programa||'').split('\n').map(x=>x.trim()).filter(Boolean);
 const trajeE=e=>(EN()&&e.traje_en)||e.traje||'';
 const regEmails=id=>[...new Set(((A&&A.inscricoes)||[]).filter(r=>r.evento_id===id).map(r=>r.email))];
+const VEST={pendente:['warn','🎬 Vídeo na fila'],a_gerar:['warn','🎬 Vídeo a ser gerado'],pronto:['hi','🎬 Vídeo pronto para aprovar'],aprovado:['ok','🎬 Vídeo enviado'],erro:['cx','🎬 Vídeo com erro'],sem_fotos:['','🎬 Sem fotos suficientes'],sem_pasta:['','🎬 Sem vídeo (álbum)']};
 const sorted=a=>[...a].sort((x,y)=>(x.data+x.hora).localeCompare(y.data+y.hora));
 
 const LEITURAS=['apiDados','apiAdminDados','apiEventoLink'];
@@ -339,6 +341,7 @@ function badges(e){
   if(e.estado==='oculto')b+=' <span class="pill warn">Oculto</span>';
   if(ui.mode==='admin'&&e.album)b+=' <span class="pill pub">📷 Álbum</span>';
   if(ui.mode==='admin'&&e.pasta_url)b+=' <a class="pill pub" href="'+esc(e.pasta_url)+'" target="_blank" rel="noopener" title="Abrir a pasta de fotos no Google Drive">📁 Pasta de fotos ↗</a>';
+  if(ui.mode==='admin'&&e.video&&VEST[e.video.estado])b+=' <span class="pill '+VEST[e.video.estado][0]+'">'+VEST[e.video.estado][1]+'</span>';
   if(ui.mode==='admin'&&e.agradecimento)b+=' <span class="pill ok">Agradecimento enviado</span>';
   if(ui.mode!=='admin'&&myReg(e.id))b+=' <span class="pill ok">'+L('Inscrito','Registered')+'</span>';
   return b;
@@ -354,6 +357,7 @@ function evCard(e,admin){
     else if(e.estado==='oculto') actions='<button class="btn sm" data-act="edit-ev" data-id="'+e.id+'">Editar</button><button class="btn sm primary" data-act="pub-ev" data-id="'+e.id+'">Mostrar</button><button class="btn sm" data-act="regs" data-id="'+e.id+'">Inscrições ('+np+' pessoas)</button>'+del;
     else actions='<button class="btn sm" data-act="edit-ev" data-id="'+e.id+'">Editar</button><button class="btn sm" data-act="copy-link" data-id="'+e.id+'">Copiar link</button>'+(e.externo?'':'<button class="btn sm" data-act="regs" data-id="'+e.id+'">Inscrições ('+np+' pessoas)</button>');
     if(e.estado==='ativo'){
+      if(!e.externo&&(e.video||(e.pasta_id&&e.data<A.hoje)))actions+='<button class="btn sm'+(e.video&&e.video.estado==='pronto'?' primary':'')+'" data-act="video" data-id="'+e.id+'">🎬 Vídeo</button>';
       actions+='<button class="btn sm" data-act="notice" data-id="'+e.id+'">Enviar novidade</button>'+(e.externo?'':'<button class="btn sm" data-act="remind" data-id="'+e.id+'" data-v="7">Lembrete agora</button>');
       actions+=ui.pending==='cx-'+e.id?'<button class="btn sm danger" data-act="cancel-ev" data-id="'+e.id+'">Confirmar cancelamento</button><button class="btn sm" data-act="pending-clear">Não</button>':'<button class="btn sm danger" data-act="ask-cancel" data-id="'+e.id+'">Cancelar evento</button>';
       actions+='<button class="btn sm" data-act="hide-ev" data-id="'+e.id+'">Ocultar</button>'+del;
@@ -502,7 +506,9 @@ function adminRegs(){
 function adminSettings(){
   return '<section class="panel narrow"><h2>Definições</h2><form data-form="settings" class="stack"><label>Nome que aparece na app e nos emails<input type="text" id="set-org" value="'+esc(A.org)+'"></label>'+
   '<label>Emails dos administradores (um por linha)<textarea id="set-admins">'+esc(A.admins.join('\n'))+'</textarea></label><button class="btn primary">Guardar definições</button></form>'+
-  '<div class="note" style="margin-top:14px">Todos os dados ficam na folha Google da Comenda. <a class="lnk" href="'+esc(A.folha)+'" target="_blank" rel="noopener">Abrir a folha</a>. Envios disponíveis hoje: '+A.fila.quota+'.</div></section>';
+  '<div class="note" style="margin-top:14px">Todos os dados ficam na folha Google da Comenda. <a class="lnk" href="'+esc(A.folha)+'" target="_blank" rel="noopener">Abrir a folha</a>. Envios disponíveis hoje: '+A.fila.quota+'.</div>'+
+  '<h3 style="margin:22px 0 6px;font-size:1rem">🎬 Vídeo automático dos eventos</h3><p class="small muted" style="margin:0 0 8px">O gerador de vídeos corre no GitHub e precisa destes dois dados (guardados como segredos do repositório). Não partilhe a chave.</p>'+
+  (ui.vidKey?'<label>Endereço da app (VIDEO_API)<input type="text" readonly class="linkbox" value="'+esc(ui.vidKey.api)+'"></label><label>Chave secreta (VIDEO_CHAVE)<input type="text" readonly class="linkbox" id="vid-chave" value="'+esc(ui.vidKey.chave)+'"></label><div class="row"><button class="btn sm danger" data-act="vid-key-new">Gerar chave nova</button></div>':'<button class="btn" data-act="vid-key">Mostrar dados do gerador</button>')+'</section>';
 }
 
 /* ---------- modais ---------- */
@@ -532,6 +538,17 @@ function modal(){
     (trajeE(e)?'<div class="info hi"><b class="small">👔 '+L('Traje obrigatório','Mandatory dress code')+'</b><div style="white-space:pre-line">'+esc(trajeE(e))+'</div></div>':'')+
     (e.externo?'':'<p class="small muted" style="margin:0">'+L('Inscrições até ','Registration until ')+esc(fmtLong(e.prazo))+(e.lotacao?L(' · lotação ',' · capacity ')+esc(e.lotacao)+L(' pessoas',' people'):'')+'</p>')+a;
   }
+  if(M.type==='video'){const V=e.video||{estado:'',info:{}},I=V.info||{},inc=new Set(I.incluir||[]);
+    const est={'':'Ainda não foi gerado.',pendente:'Na fila: é gerado na próxima hora.',a_gerar:'A ser gerado neste momento.',pronto:'Pronto. Veja-o e aprove-o para o enviar aos participantes.',aprovado:'Aprovado e enviado aos participantes'+(V.em?' ('+esc(V.em)+')':'')+'.',erro:'Não foi possível gerar o vídeo.',sem_fotos:'Não há fotos nítidas suficientes (mínimo 5).',sem_pasta:'Este evento usa um álbum do Google Fotos: o vídeo automático só funciona com a pasta do Google Drive.'}[V.estado]||'';
+    const ex=I.excluidas||[];const np=regEmails(e.id).length+A.inscricoes.filter(r=>r.evento_id===e.id).reduce((a,r)=>a+(r.convidados||[]).filter(g=>g.email).length,0);
+    return '<h2>🎬 Vídeo do evento</h2><div><b>'+esc(e.titulo)+'</b><div class="small muted">'+esc(fmtLong(e.data))+'</div></div><div class="note">'+est+(I.motivo&&(V.estado==='erro'||V.estado==='sem_fotos')?'<br>'+esc(I.motivo):'')+'</div>'+
+    (V.url?'<div class="row"><a class="btn primary" href="'+esc(V.url)+'" target="_blank" rel="noopener">▶ Ver o vídeo</a>'+(I.duracao?'<span class="small muted" style="align-self:center">'+esc(I.duracao)+' s · '+(I.usadas||[]).length+' de '+(I.total||0)+' fotos</span>':'')+'</div>':'')+
+    (I.musica?'<p class="small muted" style="margin:0">'+esc(I.musica)+'</p>':'')+
+    (ex.length?'<div class="stack"><b class="small">Fotos que ficaram de fora ('+ex.length+')</b><span class="small muted">Marque as que devem entrar e carregue em «Gerar de novo».</span><div class="tablewrap" style="max-height:260px"><table><tbody>'+ex.map(f=>'<tr><td><input type="checkbox" class="vid-inc" value="'+esc(f.id)+'"'+(inc.has(f.id)?' checked':'')+' aria-label="Incluir '+esc(f.nome)+'"></td><td>'+esc(f.nome)+'</td><td class="small muted">'+esc(f.motivo)+'</td></tr>').join('')+'</tbody></table></div></div>':'')+
+    '<div class="row">'+(V.estado==='pronto'?'<button class="btn primary" data-act="vid-ok" data-id="'+e.id+'">Aprovar e enviar aos participantes ('+np+')</button>':'')+
+    (V.estado!=='a_gerar'&&V.estado!=='sem_pasta'&&e.pasta_id?'<button class="btn" data-act="vid-gen" data-id="'+e.id+'">'+(V.estado&&V.estado!=='sem_fotos'?'Gerar de novo':'Gerar vídeo')+'</button>':'')+
+    (e.pasta_url?'<a class="btn" href="'+esc(e.pasta_url)+'" target="_blank" rel="noopener">📁 Pasta de fotos</a>':'')+'<button class="btn" data-act="modal-close">Fechar</button></div>'+
+    '<p class="small muted" style="margin:0">O vídeo é montado automaticamente com as fotos da pasta do evento: as tremidas, repetidas e muito escuras ficam de fora. Só é enviado depois de aprovado.</p>'}
   if(M.type==='link'){const l=evLink(e.id);return '<h2>'+(M.novo?'Evento criado':'Link do evento')+'</h2>'+(M.msg?'<p style="margin:0">'+esc(M.msg)+'</p>':'')+'<div><b>'+esc(e.titulo)+'</b><div class="small muted">'+esc(fmtLong(e.data)+' às '+e.hora)+'</div></div><label>Link para partilhar<input type="text" readonly id="ev-link" class="linkbox" value="'+esc(l)+'"></label><div class="row"><button class="btn primary" data-act="copy-link" data-id="'+e.id+'">Copiar link</button><button class="btn" data-act="modal-close">Fechar</button></div>'+'<div class="note small">Quem abrir o link vai diretamente para o formulário de inscrição deste evento (em português ou inglês). Quem ainda não recebe os emails da Comenda confirma a inscrição por email e passa a receber as notificações.'+(e.visibilidade==='direcao'?' <b>Evento da Direção / Gestão:</b> só é aceite quem estiver marcado como Direção na base de membros (ou for admin). Não aparece no calendário público.':e.visibilidade==='membros'?' <b>Evento de membros:</b> só é aceite quem estiver na base de membros (pelo email ou nº da Ordem).':'')+'</div>'}
   if(M.type==='membro') return memberForm(M.v?A.membros.find(m=>mkey(m)===M.v):null);
   if(M.type==='import'){const I=M.data,P=M.prev,S=new Set(M.sel);const lab=k=>(MCAMPOS.find(c=>c[0]===k)||[k,k])[1];const vv=(k,v)=>v===''?'(vazio)':k==='tipo'?(v==='CONVIDADO'?'Convidado':'Membro'):k==='direcao'?(v==='SIM'?'Sim':'Não'):k==='data_admissao'?fmtData(v):v;
@@ -664,6 +681,10 @@ document.addEventListener('click',async ev_=>{
     case 'cal': ev_.preventDefault();ui.modal={type:'cal'};break;
     case 'copy-cal': {const i=document.getElementById('cal-url');const ok=()=>toast(L('Endereço copiado.','Address copied.'));try{navigator.clipboard.writeText(i.value).then(ok,()=>{i.select();document.execCommand('copy');ok()})}catch(err){i.select();document.execCommand('copy');ok()}return}
     case 'ics-ev': {const e=ev(id);baixar('evento.ics',icsEvento(e),'text/calendar;charset=utf-8');return}
+    case 'video': ui.modal={type:'video',id};break;
+    case 'vid-gen': {const inc=[...document.querySelectorAll('.vid-inc:checked')].map(i=>i.value);r=await act('apiAdminVideo',B.admin,id,'gerar',inc);if(r){toast(r);await loadAdmin();ui.modal={type:'video',id}}break}
+    case 'vid-ok': {if(!confirm('Enviar o link do vídeo a todos os participantes deste evento?'))return;r=await act('apiAdminVideo',B.admin,id,'aprovar');if(r){toast(r);await loadAdmin();ui.modal={type:'video',id}}break}
+    case 'vid-key': case 'vid-key-new': {if(a==='vid-key-new'&&!confirm('Gerar uma chave nova? A antiga deixa de funcionar e terá de atualizar o segredo no GitHub.'))return;r=await act('apiAdminChaveVideo',B.admin,a==='vid-key-new');if(r){ui.vidKey=r}break}
     case 'pub-ev': r=await act('apiAdminPublicar',B.admin,id);if(r){toast(r);await loadAdmin()}break;
     case 'hide-ev': r=await act('apiAdminOcultar',B.admin,id);if(r){toast(r);await loadAdmin()}break;
     case 'ask-del': ui.pending='del-'+id;break;
