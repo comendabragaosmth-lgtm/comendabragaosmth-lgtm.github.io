@@ -261,6 +261,7 @@ async function boot(){
   render();
   if(B.flash)toast(B.flash);
   if(B.cal&&D&&D.me&&ui.mode!=='admin'&&!B.ev){ui.modal={type:'cal'};renderLayer()}
+  if(B.ev&&D&&ui.mode!=='admin'&&Q.get('t')&&!D.me){ui.modal={type:'msg',title:L('Link pessoal inválido','Personal link not valid'),text:L('Este link de inscrição já não é válido (por exemplo, se deixou de receber as notificações da Comenda). Para se inscrever neste evento, peça um novo convite à Comenda.','This registration link is no longer valid (for example, if you stopped receiving notifications from the Comenda). To register for this event, please ask the Comenda for a new invitation.')};renderLayer();return}
   if(B.ev&&D&&ui.mode!=='admin'){let e=D.eventos.find(x=>x.id===B.ev);
     let viaLink=false;
     if(!e){try{const le=await call('apiEventoLink',B.ev);if(le){ui.linkEv=le;e=le;viaLink=true}}catch(err){}}
