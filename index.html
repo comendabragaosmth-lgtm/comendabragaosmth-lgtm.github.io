@@ -69,6 +69,7 @@ main{padding-block:24px 60px}
 .pill.ok{background:var(--ok-soft);color:var(--ok)}
 .pill.warn{background:var(--warn-soft);color:var(--warn)}
 .pill.cx{background:var(--red-soft);color:var(--red)}
+.verif{margin-top:6px;max-width:300px}
 .pill.hi{background:var(--red);color:#fff;border-color:var(--red)}
 /* calendar */
 .calhead{display:flex;align-items:center;gap:8px;margin-bottom:10px}
@@ -400,11 +401,11 @@ function adminSubs(){
   const S=A.inscritos;const conf=S.filter(s=>s.estado==='confirmado').length;
   const rows=S.map(s=>{const pr=ui.pending==='rm-'+s.email;
     return '<tr><td>'+esc(s.nome||'—')+(s.n_ordem?' <span class="pill mem">nº '+esc(s.n_ordem)+'</span>':'')+'</td><td>'+esc(s.email)+'</td><td class="nw">'+esc(s.telemovel||'—')+'</td><td>'+esc(s.localidade||'—')+'</td><td class="notecell">'+esc(s.nota||'—')+'</td><td>'+(s.estado==='confirmado'?'<span class="pill ok">Confirmado</span>':'<span class="pill warn">Pendente</span>')+'</td>'+
-    '<td><label class="inline"><input type="checkbox" data-change="member" data-email="'+esc(s.email)+'"'+(s.membro?' checked':'')+'> Membro</label></td><td><div class="row">'+
+    '<td><label class="inline"><input type="checkbox" data-change="member" data-email="'+esc(s.email)+'"'+(s.membro?' checked':'')+'> Membro</label>'+(s.verificar&&!s.membro?'<div class="verif"><span class="pill warn">⚠ Verificar: membro nº '+esc(s.verificar.n_ordem)+'?</span><div class="small muted">'+(s.verificar.dif||[]).map(esc).join('<br>')+'</div><div class="row" style="margin-top:4px"><button class="btn sm primary" data-act="verif-sim" data-email="'+esc(s.email)+'">Confirmar como membro</button><button class="btn sm" data-act="verif-nao" data-email="'+esc(s.email)+'">Não é membro</button></div></div>':'')+'</td><td><div class="row">'+
     (s.estado!=='confirmado'?'<button class="btn sm" data-act="resend" data-email="'+esc(s.email)+'">Reenviar confirmação</button>':'')+
     (pr?'<button class="btn sm danger" data-act="rm-sub" data-email="'+esc(s.email)+'">Confirmar remoção</button><button class="btn sm" data-act="pending-clear">Não</button>':'<button class="btn sm danger" data-act="ask-rm" data-email="'+esc(s.email)+'">Remover</button>')+'</div></td></tr>'}).join('');
   return '<section class="panel"><div class="row" style="justify-content:space-between;margin-bottom:10px"><h2 style="margin:0">Inscritos nas notificações</h2><span class="small muted">'+conf+' confirmados · '+(S.length-conf)+' pendentes</span></div>'+
-  '<p class="small muted" style="margin-top:0">Marque «Membro» para a pessoa ver e ser convidada para os eventos reservados. Só quem confirmou o email recebe notificações.</p>'+
+  '<p class="small muted" style="margin-top:0">Marque «Membro» para a pessoa ver e ser convidada para os eventos reservados. Só quem confirmou o email recebe notificações. Uma pessoa só é reconhecida automaticamente como membro se o email, o nome e o nº da Ordem coincidirem com a base de membros; se só parte coincidir, aparece «⚠ Verificar».</p>'+
   '<div class="tablewrap"><table><thead><tr><th>Nome</th><th>Email</th><th>Contacto</th><th>Localidade</th><th>Nota</th><th>Estado</th><th>Tipo</th><th>Ações</th></tr></thead><tbody>'+(rows||'<tr><td colspan="8" class="muted">Ainda ninguém se inscreveu.</td></tr>')+'</tbody></table></div>'+
   '<form data-form="admin-add" class="row" style="margin-top:14px;align-items:flex-end"><label style="flex:1;min-width:180px">Nome<input type="text" id="add-name" required></label><label style="flex:1;min-width:200px">Email<input type="email" id="add-email" required></label><label class="inline"><input type="checkbox" id="add-member" checked> Membro</label><button class="btn">Enviar convite</button></form></section>';
 }
@@ -686,6 +687,7 @@ document.addEventListener('click',async ev_=>{
     case 'vid-gen': {const inc=[...document.querySelectorAll('.vid-inc:checked')].map(i=>i.value);r=await act('apiAdminVideo',B.admin,id,'gerar',inc);if(r){toast(r);await loadAdmin();ui.modal={type:'video',id}}break}
     case 'vid-ok': {if(!confirm('Enviar o link do vídeo a todos os participantes deste evento?'))return;r=await act('apiAdminVideo',B.admin,id,'aprovar');if(r){toast(r);await loadAdmin();ui.modal={type:'video',id}}break}
     case 'vid-key': case 'vid-key-new': {if(a==='vid-key-new'&&!confirm('Gerar uma chave nova? A antiga deixa de funcionar e terá de atualizar o segredo no GitHub.'))return;r=await act('apiAdminChaveVideo',B.admin,a==='vid-key-new');if(r){ui.vidKey=r}break}
+    case 'verif-sim': case 'verif-nao': r=await act('apiAdminMembro',B.admin,email,a==='verif-sim');if(r){toast(r);await loadAdmin()}break;
     case 'pub-ev': r=await act('apiAdminPublicar',B.admin,id);if(r){toast(r);await loadAdmin()}break;
     case 'hide-ev': r=await act('apiAdminOcultar',B.admin,id);if(r){toast(r);await loadAdmin()}break;
     case 'ask-del': ui.pending='del-'+id;break;
