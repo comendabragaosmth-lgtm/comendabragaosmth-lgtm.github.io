@@ -471,6 +471,22 @@ async function lerFicheiro(file){
   const linhas=rows.slice(hi+1).map((r,i)=>{const d={};map.forEach((k,j)=>{if(k&&r[j]!==undefined&&d[k]===undefined)d[k]=r[j]});return {linha:hi+i+2,dados:d}});
   return {linhas,colunas:map.filter(Boolean).map(k=>(MCAMPOS.find(c=>c[0]===k)||[k,k])[1]),ignoradas:rows[hi].filter((h,j)=>!map[j]&&String(h).trim())};
 }
+async function exportarInscricoes(e){
+  const X=await loadXLSX();const P=peopleOf(e.id),f=e.campos,rn=refN(e)||'Jantar';
+  const grupos=[['mem','Membro'],['non','Inscrito não membro'],['gst','Convidado']];
+  const cab=['Nº','Nome','Tipo',rn,'Notas'];const linhas=[];
+  grupos.forEach(([g,t])=>P.filter(p=>p.group===g).forEach(p=>linhas.push([p.n_ordem||'',p.nome||'',t,f.agape?(p.agape?'Sim':'Não'):'—',[p.nota,p.restricoes?'Restrições: '+p.restricoes:''].filter(Boolean).join(' · ')])));
+  const tot=[[],['Total de pessoas',P.length],['Membros',P.filter(p=>p.group==='mem').length],['Inscritos não membros',P.filter(p=>p.group==='non').length],['Convidados',P.filter(p=>p.group==='gst').length]];
+  if(f.agape)tot.push(['Com '+rn.toLowerCase(),P.filter(p=>p.agape).length]);
+  const titulo=[[e.titulo+' · '+e.data.split('-').reverse().join('/')+' '+e.hora],[]];
+  const ws=X.utils.aoa_to_sheet(titulo.concat([cab],linhas,tot));
+  ws['!cols']=cab.map((h,j)=>({wch:Math.min(60,Math.max(h.length,...linhas.map(r=>String(r[j]).length),j===0?6:10)+2)}));
+  linhas.forEach((r,i)=>{const c=ws['A'+(i+4)];if(c){c.t='s';c.v=String(r[0]);c.z='@'}});
+  ws['!autofilter']={ref:'A3:E'+(3+linhas.length)};
+  const wb=X.utils.book_new();X.utils.book_append_sheet(wb,ws,'Inscrições');
+  const nome=('inscricoes_'+e.data+'_'+e.titulo).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z0-9_-]+/g,'_').replace(/_+/g,'_').slice(0,80);
+  X.writeFile(wb,nome+'.xlsx');toast('Exportadas '+linhas.length+' pessoa(s).');
+}
 async function exportarMembros(){
   const X=await loadXLSX();const subs={};A.inscritos.forEach(s=>subs[s.email]=s);
   const cab=MCAMPOS.map(c=>c[1]).concat(['Notificações','Admin']);
@@ -520,7 +536,7 @@ function adminRegs(){
   const cols=['Nº','Nome','Email','Telemóvel'].concat(f.nif?['NIF']:[],f.agape?[refN(e)||'Ágape']:[],f.visita?['Visita']:[],f.restricoes?['Restrições']:[],e.atividades.length?['Atividades']:[],['Notas']);
   const row=p=>'<tr><td class="nw">'+esc(p.n_ordem||'—')+'</td><td>'+esc(p.nome)+'</td><td>'+esc(p.email||'—')+'</td><td class="nw">'+esc(p.telemovel||'—')+'</td>'+(f.nif?'<td class="nw">'+esc(p.nif||'—')+'</td>':'')+(f.agape?'<td>'+(p.agape?'Sim':'Não')+'</td>':'')+(f.visita?'<td>'+(p.visita?'Sim':'Não')+'</td>':'')+(f.restricoes?'<td>'+esc(p.restricoes||'—')+'</td>':'')+(e.atividades.length?'<td>'+esc(p.atividades.join('; ')||'—')+'</td>':'')+'<td>'+esc(p.nota||'—')+'</td></tr>';
   const grp=(t,list)=>'<tr class="grp"><td colspan="'+cols.length+'">'+t+' <span class="muted">('+list.length+')</span></td></tr>'+(list.length?list.map(row).join(''):'<tr><td colspan="'+cols.length+'" class="muted">Nenhum.</td></tr>');
-  return '<section class="panel"><div class="row" style="margin-bottom:12px"><label style="flex:1;min-width:220px">Evento<select data-change="regev">'+all.map(x=>'<option value="'+x.id+'"'+(x.id===e.id?' selected':'')+'>'+esc(x.data.split('-').reverse().join('/')+' · '+x.titulo)+'</option>').join('')+'</select></label>'+(!e.externo&&(e.estado==='ativo'||e.estado==='oculto')?'<button class="btn primary" data-act="add-regs" data-id="'+e.id+'" style="align-self:flex-end">Inscrever pessoas</button>':'')+'<button class="btn" data-act="csv" style="align-self:flex-end">Copiar tabela</button><a class="btn" href="'+esc(A.folha)+'" target="_blank" rel="noopener" style="align-self:flex-end">Abrir folha Google</a></div>'+
+  return '<section class="panel"><div class="row" style="margin-bottom:12px"><label style="flex:1;min-width:220px">Evento<select data-change="regev">'+all.map(x=>'<option value="'+x.id+'"'+(x.id===e.id?' selected':'')+'>'+esc(x.data.split('-').reverse().join('/')+' · '+x.titulo)+'</option>').join('')+'</select></label>'+(!e.externo&&(e.estado==='ativo'||e.estado==='oculto')?'<button class="btn primary" data-act="add-regs" data-id="'+e.id+'" style="align-self:flex-end">Inscrever pessoas</button>':'')+'<button class="btn" data-act="xls-regs" style="align-self:flex-end">Exportar Excel</button><button class="btn" data-act="csv" style="align-self:flex-end">Copiar tabela</button><a class="btn" href="'+esc(A.folha)+'" target="_blank" rel="noopener" style="align-self:flex-end">Abrir folha Google</a></div>'+
   '<div class="tiles">'+tiles+'</div>'+
   '<div class="tablewrap"><table><thead><tr>'+cols.map(c=>'<th>'+c+'</th>').join('')+'</tr></thead><tbody>'+
   (P.length?grp('Membros',mem)+grp('Inscritos não membros',non)+grp('Convidados',gst):'<tr><td colspan="'+cols.length+'" class="muted">Ainda sem inscrições.</td></tr>')+'</tbody></table></div>'+
@@ -749,6 +765,7 @@ document.addEventListener('click',async ev_=>{
     case 'send-open': r=await act('apiAdminEnviarAbertos',B.admin,email);if(r)toast(r);return;
     case 'resend': r=await act('apiAdminReenviar',B.admin,email);if(r){toast(r);await loadAdmin()}break;
     case 'rm-sub': r=await act('apiAdminRemover',B.admin,email);if(r){toast(r);ui.pending=null;await loadAdmin()}break;
+    case 'xls-regs': {const e=ev(ui.regEv);if(e)exportarInscricoes(e).catch(err=>toast(errMsg(err)));return}
     case 'csv': {const e=ev(ui.regEv);const P=peopleOf(e.id);const q=x=>'"'+String(x==null?'':x).replace(/"/g,'""')+'"';
       const txt=[['Tipo','Nº Ordem','Nome','Email','Telemóvel','NIF','Ágape','Visita','Restrições','Atividades','Notas'].map(q).join('\t')].concat(P.map(p=>[p.type,p.n_ordem,p.nome,p.email,p.telemovel,p.nif,p.agape?'Sim':'Não',p.visita?'Sim':'Não',p.restricoes,p.atividades.join('; '),p.nota].map(q).join('\t'))).join('\n');
       try{navigator.clipboard.writeText(txt).then(()=>toast('Tabela copiada. Cole numa folha de cálculo.'),()=>toast('Não foi possível copiar. Use «Abrir folha Google».'))}catch(err){toast('Não foi possível copiar. Use «Abrir folha Google».')}return}
