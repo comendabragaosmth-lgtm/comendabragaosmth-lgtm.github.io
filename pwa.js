@@ -167,7 +167,82 @@
     else if (a === 'dispensar') { ls.s(DK, String(Date.now())); tirarBarra(); }
     else if (a === 'entrar') janelaEmail();
     else if (a === 'outro-email') janelaEmail();
+    else if (a === 'push-on') ativarPush();
+    else if (a === 'push-off') desativarPush();
   }, true);
+
+  /* ---------- avisos no telemóvel (push) ---------- */
+  var PK = 'comenda_push', CK = 'comenda_push_cfg', FB = 'https://www.gstatic.com/firebasejs/10.14.1/';
+  var PUSH_OK = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+  var push = { cfg: null, cfgLida: false, ocupado: false, msg: '' };
+  function script(src) {
+    return new Promise(function (ok, erro) {
+      if (document.querySelector('script[src="' + src + '"]')) return ok();
+      var s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = function () { erro(new Error(T('Não foi possível carregar o serviço de avisos.', 'Could not load the notification service.'))); };
+      document.head.appendChild(s);
+    });
+  }
+  function lerCfg() {
+    if (push.cfgLida) return Promise.resolve(push.cfg);
+    var c = null; try { c = JSON.parse(ls.g(CK) || 'null'); } catch (e) {}
+    if (c) { push.cfg = c; push.cfgLida = true; }
+    return chamar('apiPushConfig').then(function (r) { push.cfg = r; push.cfgLida = true; ls.s(CK, r ? JSON.stringify(r) : ''); return r; })
+      .catch(function () { push.cfgLida = !!c; return c; });
+  }
+  function tokenFcm() {
+    return lerCfg().then(function (cfg) {
+      if (!cfg) throw new Error(T('Os avisos ainda não estão disponíveis.', 'Notifications are not available yet.'));
+      return script(FB + 'firebase-app-compat.js').then(function () { return script(FB + 'firebase-messaging-compat.js'); }).then(function () {
+        var fb = window.firebase;
+        if (!fb.apps.length) fb.initializeApp({ apiKey: cfg.apiKey, projectId: cfg.projectId, messagingSenderId: cfg.messagingSenderId, appId: cfg.appId, authDomain: cfg.authDomain || (cfg.projectId + '.firebaseapp.com') });
+        return navigator.serviceWorker.ready.then(function (reg) { return fb.messaging().getToken({ vapidKey: cfg.vapid, serviceWorkerRegistration: reg }); });
+      });
+    });
+  }
+  function plataforma() { return (IOS ? 'iOS' : ANDROID ? 'Android' : 'Computador') + (INSTALADA ? ' · app' : ''); }
+  function ativarPush() {
+    if (push.ocupado) return;
+    push.ocupado = true; push.msg = ''; desenharPush();
+    Notification.requestPermission().then(function (p) {
+      if (p !== 'granted') throw new Error(T('Os avisos foram bloqueados. Pode autorizá-los nas definições do telemóvel (Notificações → Comenda).', 'Notifications were blocked. You can allow them in your phone settings (Notifications → Comenda).'));
+      return tokenFcm();
+    }).then(function (fcm) {
+      return chamar('apiPushRegistar', ls.g(TK), fcm, plataforma(), EN() ? 'en' : 'pt').then(function (msg) { ls.s(PK, fcm); push.agora = true; push.msg = msg; });
+    }).catch(function (e) { push.msg = e.message || String(e); })
+      .then(function () { push.ocupado = false; desenharPush(); });
+  }
+  function desativarPush() {
+    var fcm = ls.g(PK);
+    ls.s(PK, ''); push.agora = false;
+    push.msg = T('Avisos desativados neste telemóvel.', 'Notifications turned off on this phone.');
+    desenharPush();
+    if (fcm) chamar('apiPushRemover', ls.g(TK), fcm).catch(function () {});
+    try { if (window.firebase && firebase.apps.length) firebase.messaging().deleteToken().catch(function () {}); } catch (e) {}
+  }
+  /* ao abrir a app: confirma que o token continua válido (o Firebase pode renová-lo) */
+  function renovarPush() {
+    var antigo = ls.g(PK);
+    if (!PUSH_OK || !antigo || !ls.g(TK) || Notification.permission !== 'granted') return;
+    tokenFcm().then(function (fcm) {
+      if (fcm && fcm !== antigo) return chamar('apiPushRegistar', ls.g(TK), fcm, plataforma(), EN() ? 'en' : 'pt').then(function () { ls.s(PK, fcm); });
+    }).catch(function () {});
+  }
+  function htmlPush() {
+    var ativo = PUSH_OK && ls.g(PK) && (push.agora || Notification.permission === 'granted');
+    var h = '<h2>🔔 ' + T('Avisos no telemóvel', 'Phone notifications') + '</h2>';
+    if (!PUSH_OK && IOS && !INSTALADA) {
+      h += '<p class="muted small" style="margin:0 0 12px">' + T('No iPhone, os avisos funcionam com a app instalada no ecrã principal.', 'On iPhone, notifications work once the app is installed on the home screen.') + '</p><button class="btn primary" data-pwa="instalar">' + T('Instalar a app', 'Install the app') + '</button>';
+    } else if (!PUSH_OK) {
+      h += '<p class="muted small" style="margin:0">' + T('Este browser não suporta avisos. Continua a receber tudo por email.', 'This browser does not support notifications. You will keep receiving everything by email.') + '</p>';
+    } else if (ativo) {
+      h += '<p class="small" style="margin:0 0 12px"><span class="calok">✓ ' + T('Ativos neste telemóvel', 'On for this phone') + '</span> <span class="muted">' + T('— convites, lembretes e alterações chegam aqui e por email.', '— invitations, reminders and changes arrive here and by email.') + '</span></p><button class="btn sm" data-pwa="push-off">' + T('Desativar', 'Turn off') + '</button>';
+    } else {
+      h += '<p class="muted small" style="margin:0 0 12px">' + T('Receba os convites, lembretes e alterações dos eventos como notificação, além do email.', 'Get event invitations, reminders and changes as notifications, as well as by email.') + '</p><button class="btn primary" data-pwa="push-on"' + (push.ocupado ? ' disabled' : '') + '>' + (push.ocupado ? T('A ativar…', 'Turning on…') : T('Ativar avisos', 'Turn on notifications')) + '</button>';
+    }
+    if (push.msg) h += '<p class="small" style="margin:10px 0 0">' + esc(push.msg) + '</p>';
+    return h;
+  }
+  function desenharPush() { var s = document.getElementById('pwa-push'); if (s) s.innerHTML = htmlPush(); }
 
   /* ---------- acrescentos à página (refeitos a cada redesenho) ---------- */
   function acrescentar() {
@@ -183,6 +258,17 @@
         '<button class="btn primary" data-pwa="entrar">' + T('Entrar com o meu email', 'Sign in with my email') + '</button>';
       if (painel && painel.parentNode) painel.parentNode.insertBefore(s, painel);
     }
+    var sair = app.querySelector('[data-act="forget"]');
+    if (sair && !document.getElementById('pwa-push') && ls.g(TK) && (push.cfg || !push.cfgLida)) {
+      var meu = sair.closest('section');
+      var ps = document.createElement('section');
+      ps.className = 'panel'; ps.id = 'pwa-push';
+      if (meu && meu.parentNode) {
+        meu.parentNode.insertBefore(ps, meu.nextSibling);
+        if (push.cfgLida) desenharPush();
+        else { ps.hidden = true; lerCfg().then(function (c) { var el = document.getElementById('pwa-push'); if (!el) return; if (c) { el.hidden = false; desenharPush(); } else el.remove(); }); }
+      }
+    }
     var foot = document.querySelector('footer.foot');
     if (foot && !INSTALADA && !document.getElementById('pwa-foot')) {
       var l = document.createElement('a');
@@ -197,6 +283,7 @@
     var app = document.getElementById('app');
     if (app && window.MutationObserver) new MutationObserver(acrescentar).observe(app, { childList: true });
     setTimeout(mostrarBarra, 2500);
+    setTimeout(renovarPush, 6000);
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar); else iniciar();
 })();
