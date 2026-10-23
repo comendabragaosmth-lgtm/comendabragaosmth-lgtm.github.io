@@ -33,6 +33,7 @@ html{-webkit-text-size-adjust:100%}body{margin:0}img{max-width:100%}[hidden]{dis
   --s1:#d9455e; --s2:#c98500; --s3:#3987e5; --neutral:#6f6668; --empty:#2f2a2b}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.5}
+body[data-sync]::after{content:attr(data-sync);position:fixed;left:50%;bottom:14px;transform:translateX(-50%);background:var(--ink);color:#fff;font-size:12px;padding:5px 12px;border-radius:20px;opacity:.85;z-index:60;pointer-events:none}
 h1,h2,h3{font-family:var(--f-display);font-weight:600;text-wrap:balance;margin:0;letter-spacing:.02em}
 button,input,select,textarea{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--gold);outline-offset:2px}
@@ -277,6 +278,10 @@ const TODAY=()=> (A&&A.hoje)||(D&&D.hoje)||iso(new Date());
 const TK='comenda_token',LK='comenda_lang';
 const lsG=k=>{try{return localStorage.getItem(k)||''}catch(e){return ''}};
 const lsS=(k,v)=>{try{v?localStorage.setItem(k,v):localStorage.removeItem(k)}catch(e){}};
+const DK='comenda_dados';
+const dGet=()=>{try{const x=JSON.parse(localStorage.getItem(DK)||'null');return x&&x.tk===(B.token||'')&&x.d&&Array.isArray(x.d.eventos)?x.d:null}catch(e){return null}};
+const dSet=d=>{try{d?localStorage.setItem(DK,JSON.stringify({tk:B.token||'',d})):localStorage.removeItem(DK)}catch(e){}};
+const syncOn=v=>{try{if(v)document.body.dataset.sync=L('A atualizar…','Updating…');else delete document.body.dataset.sync}catch(e){}};
 let LANG=(()=>{const q=Q.get('lang');if(q==='en'||q==='pt')return q;const x=lsG(LK);if(x==='en'||x==='pt')return x;return /^pt/i.test(navigator.language||'pt')?'pt':'en'})();
 function EN(){return LANG==='en'&&ui.mode!=='admin'}
 function L(pt,en){return EN()?en:pt}
@@ -295,10 +300,11 @@ function toast(m){const l=document.getElementById('toast');if(l)l.remove();const
 async function act(fn,...args){if(ui.busy)return null;ui.busy=true;document.body.classList.add('busy');try{return await call(fn,...args)}catch(e){toast(errMsg(e));if(String(e.message||'').indexOf('SESSAO')>=0){A=null;B.admin='';sSet('');render()}return null}finally{ui.busy=false;document.body.classList.remove('busy')}}
 
 /* ---------- carregar ---------- */
-async function loadPublic(){try{D=await call('apiDados',B.token||'')}catch(e){D={org:B.org,hoje:iso(new Date()),eventos:[],me:null};toast(errMsg(e))}
+async function loadPublic(){let ok=false;try{D=await call('apiDados',B.token||'');ok=true}catch(e){D=dGet()||{org:B.org,hoje:iso(new Date()),eventos:[],me:null};toast(errMsg(e))}
   if(!ui.month)ui.month=D.hoje.slice(0,7);
   if(D.me&&B.token){lsS(TK,B.token);if(D.me.lingua&&!lsG(LK)&&!Q.get('lang'))LANG=D.me.lingua;else if(D.me.lingua!==LANG)call('apiLingua',B.token,LANG).catch(()=>{})}
-  if(B.token&&!D.me&&ui.mode!=='sair'){if(B.token===lsG(TK))lsS(TK,'');B.token=''}
+  if(B.token&&!D.me&&ui.mode!=='sair'){if(B.token===lsG(TK))lsS(TK,'');B.token='';dSet(null)}
+  else if(ok)dSet(D);
 }
 async function loadAdmin(){try{A=await call('apiAdminDados',B.admin)}catch(e){A=null;B.admin='';sSet('');if(!/SESSAO/.test(String(e.message)))toast(errMsg(e));else ui.msg='A sua sessão terminou. Entre de novo com o seu email e palavra-passe.'}
   if(A&&!ui.month)ui.month=A.hoje.slice(0,7);
@@ -310,7 +316,9 @@ async function boot(){
   if(B.insc){try{const r=await call('apiConfirmarInscricao',B.insc);B.flash=r.msg;B.inscOk=r.ok;if(r.token){B.token=r.token;lsS(TK,r.token)}if(r.ev)B.ev=r.ev}catch(e){B.flash=errMsg(e)}try{history.replaceState(null,'',B.url+(B.token?'?t='+encodeURIComponent(B.token):''))}catch(e){}}
   if(!B.token&&!ui.mode)B.token=lsG(TK);
   if(ui.mode==='admin'){B.admin=sGet();if(B.admin)await loadAdmin()}
-  else await loadPublic();
+  else{const c=!B.confirmar&&!B.insc&&ui.mode!=='sair'?dGet():null;
+    if(c){D=c;D.hoje=iso(new Date());if(!ui.month)ui.month=D.hoje.slice(0,7);syncOn(true);render()}
+    await loadPublic();syncOn(false)}
   render();
   if(B.flash)toast(B.flash);
   if(B.cal&&D&&D.me&&ui.mode!=='admin'&&!B.ev){ui.modal={type:'cal'};renderLayer()}
@@ -1067,7 +1075,7 @@ document.addEventListener('click',async ev_=>{
     case 'do-import': {const I=ui.modal.data,S=new Set(ui.modal.sel);r=await act('apiAdminImportarMembros',B.admin,I.linhas.filter(l=>S.has(l.linha)));if(r){await loadAdmin();ui.modal={type:'import-res',res:r};render()}return}
     case 'forgot': ev_.preventDefault();ui.forgot=v==='1';ui.msg=null;break;
     case 'logout': await act('apiAdminSair',B.admin);sSet('');B.admin='';A=null;ui.msg='Sessão terminada.';break;
-    case 'sair': r=await act('apiSair',B.token);if(r){ui.msg=r;D&&(D.me=null)}break;
+    case 'sair': r=await act('apiSair',B.token);if(r){ui.msg=r;D&&(D.me=null);dSet(null)}break;
     case 'unreg': {const mv=val('r-motivo');if(!mv){toast(L('Indique o motivo da anulação.','Please give the reason for cancelling.'));return}r=await act('apiAnular',B.token,id,mv,LANG);}if(r){toast(r);ui.modal=null;ui.pending=null;await loadPublic()}break;
     case 'remind': r=await act('apiAdminLembrete',B.admin,id,7);if(r){toast(r);await loadAdmin()}break;
     case 'cancel-ev': r=await act('apiAdminCancelar',B.admin,id);if(r){toast(r);ui.pending=null;await loadAdmin()}break;
